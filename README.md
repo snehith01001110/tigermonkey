@@ -17,7 +17,7 @@ A small browser version of a 4-card Cabo/Cambio variant. It supports the origina
 - Red King: -1 point.
 - Joker: 0 points.
 - J/Q/black K score 11/12/13 respectively.
-- Match discard: if one of your face-down cards has the same rank as the top discard, you can remove it. A wrong match adds a penalty card.
+- Match discard: if one of your face-down cards has the same rank as the top discard, you can remove it. The card leaves its spot empty rather than closing the gap, so every other card stays where you memorized it. A wrong match adds a penalty card, which fills an empty spot before the hand grows.
 - Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table.
 
 ## Run locally

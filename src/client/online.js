@@ -220,6 +220,10 @@ function renderHands() {
 function renderHand(container, hand, owner) {
   container.innerHTML = "";
   hand.forEach((card, index) => {
+    if (!card) {
+      container.appendChild(emptySlot());
+      return;
+    }
     const selectable = canSelectCard(owner);
     const cardButton = cardElement(card, { faceUp: !card.hidden, index, owner, selectable });
     cardButton.dataset.deal = String(index * 2 + (owner === "opponent" ? 1 : 0));
@@ -228,6 +232,14 @@ function renderHand(container, hand, owner) {
     cardButton.addEventListener("click", () => handleCardClick(owner, index));
     container.appendChild(cardButton);
   });
+}
+
+// The spot a discarded card left behind: it holds the grid open so nothing shifts.
+function emptySlot() {
+  const slot = document.createElement("span");
+  slot.className = "card-slot";
+  slot.setAttribute("aria-hidden", "true");
+  return slot;
 }
 
 function renderCenter() {
@@ -448,6 +460,7 @@ async function countHand(side, token) {
   tally.classList.add("active");
   let running = 0;
   for (let index = 0; index < hand.length; index += 1) {
+    if (!hand[index]) continue;
     const value = valueOf(hand[index]);
     running += value;
     countCard(container.children[index], value);
@@ -579,7 +592,7 @@ function wait(ms) {
 
 function revealedCardName() {
   for (const candidate of state.players) {
-    const revealed = candidate.hand.find((card) => !card.hidden);
+    const revealed = candidate.hand.find((card) => card && !card.hidden);
     if (revealed) return prettyCard(revealed);
   }
   return "that card";

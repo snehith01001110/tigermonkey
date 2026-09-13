@@ -126,6 +126,19 @@
     return 13;
   }
 
+  // A hand is a fixed set of spots: a card that leaves the hand empties its spot instead
+  // of sliding the rest up, so every card you've memorized stays where you left it. A card
+  // coming in takes the first empty spot, and only grows the hand when every spot is filled.
+  function placeCard(hand, card) {
+    const empty = hand.indexOf(null);
+    if (empty !== -1) {
+      hand[empty] = card;
+      return empty;
+    }
+    hand.push(card);
+    return hand.length - 1;
+  }
+
   function sameRank(a, b) {
     if (!a || !b) return false;
     return a.rank === b.rank;
@@ -253,6 +266,10 @@
     const selected = owner === "player" ? state.selectedOwn : state.selectedOpp;
     container.innerHTML = "";
     hand.forEach((card, index) => {
+      if (!card) {
+        container.appendChild(emptySlot());
+        return;
+      }
       const faceUp = state.gameOver || reveal.has(index);
       const el = cardElement(card, { faceUp, index, owner, selectable: canSelectCard(owner, index) });
       el.dataset.deal = String(index * 2 + (owner === "ai" ? 1 : 0));
@@ -261,6 +278,14 @@
       el.addEventListener("click", () => handleCardClick(owner, index));
       container.appendChild(el);
     });
+  }
+
+  // The spot a discarded card left behind: it holds the grid open so nothing shifts.
+  function emptySlot() {
+    const slot = document.createElement("span");
+    slot.className = "card-slot";
+    slot.setAttribute("aria-hidden", "true");
+    return slot;
   }
 
   function renderCenter() {
@@ -345,7 +370,7 @@
         return [["got it", finishInitialPeek, true]];
       case "await-draw": {
         const actions = [];
-        if (state.player.length) actions.push(["match discard", enterMatchMode]);
+        if (state.player.some(Boolean)) actions.push(["match discard", enterMatchMode]);
         if (!state.caboCaller) actions.push(["call cabo", callCabo, true]);
         return actions;
       }
@@ -432,6 +457,7 @@
 
   function canSelectCard(owner, index) {
     if (state.gameOver || state.turn !== "player") return false;
+    if (!(owner === "player" ? state.player : state.ai)[index]) return false;
     if (owner === "player") {
       return ["drawn", "choose-replace", "match-mode", "power-peek-own", "power-j-own", "power-q-own", "power-k-own"].includes(state.phase);
     }
@@ -695,29 +721,19 @@
     if (sameRank(card, top)) {
       record("you", `Matched the discard with your ${where} card, `, card, ".");
       state.discard.push(card);
-      state.player.splice(index, 1);
-      remapKnowledgeAfterRemoval(state.playerKnown, index);
-      remapKnowledgeAfterRemoval(state.aiKnowsPlayer, index);
+      state.player[index] = null;
+      state.playerKnown.delete(index);
+      state.aiKnowsPlayer.delete(index);
       say(`Correct — ${pretty(card)} is gone. Now take your turn.`);
     } else {
       record("you", `Tried to match with your ${where} card, `, card, ". Wrong, so took a penalty card.");
       if (tracks()) state.aiKnowsPlayer.add(index); // the wrong card was shown
       refillDeckIfNeeded();
-      state.player.push(state.deck.pop());
+      placeCard(state.player, state.deck.pop());
       say(`Wrong match. ${pretty(card)} doesn't match ${pretty(top)} — penalty card added.`);
     }
     state.phase = "await-draw";
     render();
-  }
-
-  function remapKnowledgeAfterRemoval(set, removedIndex) {
-    const next = new Set();
-    for (const i of set) {
-      if (i < removedIndex) next.add(i);
-      else if (i > removedIndex) next.add(i - 1);
-    }
-    set.clear();
-    for (const i of next) set.add(i);
   }
 
   function callCabo() {
@@ -767,8 +783,8 @@
       const matched = state.ai[matchIndex];
       record("computer", `Matched the discard with its ${spot("ai", matchIndex)} card, `, matched, ".");
       state.discard.push(matched);
-      state.ai.splice(matchIndex, 1);
-      remapKnowledgeAfterRemoval(state.aiKnown, matchIndex);
+      state.ai[matchIndex] = null;
+      state.aiKnown.delete(matchIndex);
       await step(`Computer matched the discard with its ${matched.rank}.`, 1000);
     }
 
@@ -894,7 +910,7 @@
     state.aiKnown.forEach((i) => state.ai[i] && seen.add(state.ai[i].id));
     state.aiKnowsPlayer.forEach((i) => state.player[i] && seen.add(state.player[i].id));
     if (state.aiDrawn) seen.add(state.aiDrawn.id);
-    const unseen = [...state.deck, ...state.ai, ...state.player].filter((card) => !seen.has(card.id));
+    const unseen = [...state.deck, ...state.ai, ...state.player].filter((card) => card && !seen.has(card.id));
     return unseen.length ? unseen.reduce((sum, card) => sum + score(card), 0) / unseen.length : 6.2;
   }
 
@@ -904,6 +920,7 @@
     const avg = unseenAverage();
     let worst = null;
     state.ai.forEach((card, i) => {
+      if (!card) return;
       const known = state.aiKnown.has(i);
       const value = known ? score(card) : avg;
       if (!worst || value > worst.value || (value === worst.value && known)) worst = { index: i, value, known };
@@ -950,9 +967,9 @@
     const t = tune();
     if (state.aiTurnCount < t.caboTurns) return false;
     const avg = unseenAverage();
-    const unknownOwn = state.ai.filter((_, i) => !state.aiKnown.has(i)).length;
-    const own = state.ai.reduce((sum, card, i) => sum + (state.aiKnown.has(i) ? score(card) : avg), 0);
-    const yours = state.player.reduce((sum, _, i) => sum + yourSpotValue(i, avg), 0);
+    const unknownOwn = state.ai.filter((card, i) => card && !state.aiKnown.has(i)).length;
+    const own = state.ai.reduce((sum, card, i) => sum + (card ? (state.aiKnown.has(i) ? score(card) : avg) : 0), 0);
+    const yours = state.player.reduce((sum, card, i) => sum + (card ? yourSpotValue(i, avg) : 0), 0);
     if (unknownOwn === 0 && own <= t.caboLow) return true;
     if (own + t.lead + t.risk * unknownOwn < yours) return true;
     return state.aiTurnCount >= 10 && own <= 10;
@@ -1129,9 +1146,9 @@
   }
 
   function estimateAiScore() {
-    if (!state.ai.length) return 0;
     let total = 0;
     state.ai.forEach((card, i) => {
+      if (!card) return;
       total += state.aiKnown.has(i) ? score(card) : 6.5;
     });
     return total;
@@ -1155,8 +1172,8 @@
     state.temporaryPlayerReveal.clear();
     state.temporaryAiReveal.clear();
     state.scores = {
-      player: state.player.reduce((sum, c) => sum + score(c), 0),
-      ai: state.ai.reduce((sum, c) => sum + score(c), 0),
+      player: state.player.reduce((sum, c) => sum + (c ? score(c) : 0), 0),
+      ai: state.ai.reduce((sum, c) => sum + (c ? score(c) : 0), 0),
     };
     say("Hands are down. Counting them up…");
     render();
@@ -1185,6 +1202,7 @@
     let running = 0;
     for (let i = 0; i < hand.length; i++) {
       if (state.phase !== "counting") return; // skipped
+      if (!hand[i]) continue;
       const value = score(hand[i]);
       running += value;
       countCard(container.children[i], value);
@@ -1284,8 +1302,9 @@
     return `${card.rank}${card.suit}`;
   }
 
+  // Spots that still hold a card; an emptied spot is never a choice.
   function indices(arr) {
-    return arr.map((_, i) => i);
+    return arr.flatMap((card, i) => (card ? [i] : []));
   }
 
   function randomFrom(arr) {
