@@ -1,0 +1,17 @@
+{
+  "name": "tigermonkey",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 8000",
+    "dev:api": "wrangler dev --port 8787",
+    "test": "node --test",
+    "smoke:api": "node scripts/smoke-multiplayer.mjs",
+    "check:api": "wrangler deploy --dry-run",
+    "deploy:api": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.2",
+    "wrangler": "^4.131.1"
+  }
+}

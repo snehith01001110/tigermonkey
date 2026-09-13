@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f4f0e7" />
+  <meta name="multiplayer-api" content="https://tigermonkey-multiplayer.snehithn5.workers.dev" />
   <title>TigerMonkey — Cabo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,6 +17,7 @@
     <header class="topbar">
       <a class="brand" href="/" aria-label="TigerMonkey home">tigermonkey</a>
       <div class="top-actions">
+        <button id="multiplayerBtn" class="text-button" type="button">multiplayer</button>
         <button id="historyBtn" class="text-button history-toggle" type="button">history</button>
         <button id="rulesBtn" class="text-button" type="button">rules</button>
         <button id="newGameBtn" class="text-button" type="button">new game</button>
@@ -78,6 +80,36 @@
     </div>
   </dialog>
 
+  <dialog id="multiplayerDialog" class="modal">
+    <div class="modal-content multiplayer-content">
+      <div class="modal-header">
+        <h2 id="multiplayerTitle">play together</h2>
+        <button id="closeMultiplayerBtn" class="icon-button" type="button" aria-label="Close multiplayer">×</button>
+      </div>
+
+      <div id="multiplayerForm">
+        <label class="field-label" for="playerName">your name</label>
+        <input id="playerName" class="text-input" type="text" maxlength="20" autocomplete="nickname" placeholder="player" />
+        <button id="createRoomBtn" class="primary-button full" type="button">create a room</button>
+
+        <div id="joinRoomFields" class="join-room-fields">
+          <span class="form-divider">or join one</span>
+          <label class="field-label" for="roomCode">room code</label>
+          <input id="roomCode" class="text-input room-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" />
+          <button id="joinRoomBtn" class="secondary-button full" type="button">join room</button>
+        </div>
+        <p id="multiplayerError" class="form-error" role="alert" hidden></p>
+      </div>
+
+      <div id="waitingRoom" class="waiting-room" hidden>
+        <span class="muted">room code</span>
+        <strong id="waitingRoomCode" class="room-code">ABC123</strong>
+        <p id="waitingRoomMessage">Waiting for another player…</p>
+        <button id="copyInviteBtn" class="primary-button full" type="button">copy invite link</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="historyDialog" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -95,7 +127,7 @@
         <button id="closeSettingsBtn" class="icon-button" type="button" aria-label="Close settings">×</button>
       </div>
 
-      <div class="setting">
+      <div id="computerSetting" class="setting">
         <div id="levelLabel" class="setting-label">computer</div>
         <div class="segmented" role="radiogroup" aria-labelledby="levelLabel">
           <label><input type="radio" name="level" value="easy" /><span>easy</span></label>
@@ -125,13 +157,13 @@
       <h2 id="resultTitle">you win</h2>
       <div class="score-row">
         <div><span>you</span><strong id="playerScore">0</strong></div>
-        <div><span>computer</span><strong id="aiScore">0</strong></div>
+        <div><span id="opponentScoreLabel">computer</span><strong id="aiScore">0</strong></div>
       </div>
       <button id="playAgainBtn" class="primary-button full" type="button">play again</button>
       <button id="resultSettingsBtn" class="secondary-button full" type="button">settings</button>
     </div>
   </dialog>
 
-  <script src="game.js"></script>
+  <script type="module" src="src/client/app.js"></script>
 </body>
 </html>

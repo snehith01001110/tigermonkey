@@ -1,6 +1,6 @@
 # TigerMonkey — Cabo
 
-A tiny browser version of a 4-card Cabo/Cambio variant. Built as plain HTML/CSS/JavaScript so it can be hosted anywhere with no backend.
+A small browser version of a 4-card Cabo/Cambio variant. It supports the original computer opponent and private two-player online rooms.
 
 ## Rules in this version
 
@@ -22,16 +22,46 @@ A tiny browser version of a 4-card Cabo/Cambio variant. Built as plain HTML/CSS/
 
 ## Run locally
 
-Open `index.html` directly, or serve the folder:
+Install the development dependency, then run the site and multiplayer API in separate terminals:
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm run dev
+```
+
+```bash
+npm run dev:api
 ```
 
 Then visit `http://localhost:8000`.
 
+Run the rules tests and the live two-client smoke test with:
+
+```bash
+npm test
+npm run smoke:api
+```
+
+The smoke test expects `npm run dev:api` to already be running.
+
+## Multiplayer architecture
+
+- `src/shared/games/cabo.js` is the server-authoritative Cabo rules engine.
+- `src/shared/games/registry.js` is the extension point for additional games.
+- `worker/index.js` provides room creation, joining, private player credentials, WebSocket updates, reconnect handling, and one Durable Object per room.
+- `src/client/online.js` renders a player-specific, redacted room view using the existing table design.
+
+The server owns shuffling and validates every action. Hidden cards are removed from each outgoing player view rather than merely hidden with CSS.
+
 ## Deploy
 
-Because the app is fully static, GitHub Pages, Cloudflare Pages, Netlify, or Vercel all work without a build step.
+The frontend remains a static GitHub Pages site with no build step. Pushing the default branch runs `.github/workflows/pages.yml`.
 
-For GitHub Pages, publish the repository root from the default branch. Add a `CNAME` file containing `tigermonkey.com` only when you're ready to point the domain at this site.
+Deploy the multiplayer Worker with:
+
+```bash
+npm run check:api
+npm run deploy:api
+```
+
+The deployed Worker URL is set in the `multiplayer-api` meta tag in `index.html`. The Worker accepts the production domain and the local development origins configured in `wrangler.jsonc`.

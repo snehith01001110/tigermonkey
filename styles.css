@@ -77,6 +77,7 @@ body {
 
 button, a { font: inherit; }
 button { color: inherit; touch-action: manipulation; }
+[hidden] { display: none !important; }
 
 .app {
   width: min(1080px, 100%);
@@ -159,6 +160,46 @@ button { color: inherit; touch-action: manipulation; }
   gap: 14px;
 }
 .modal .history-list { max-height: 60vh; margin-top: 18px; overflow-y: auto; }
+
+#multiplayerDialog { width: min(390px, calc(100vw - 32px)); }
+.field-label {
+  display: block;
+  margin: 18px 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.text-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: var(--ring);
+  border-radius: 8px;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+.text-input:focus { border-color: var(--ink); }
+.room-input { letter-spacing: 0.14em; text-transform: uppercase; }
+.join-room-fields { display: grid; }
+.form-divider {
+  margin: 21px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.form-error { margin: 14px 0 0; color: var(--red-text); font-size: 13px; }
+.multiplayer-content .full { margin-top: 12px; }
+.waiting-room { padding-top: 20px; text-align: center; }
+.waiting-room p { color: var(--muted); }
+.room-code {
+  display: block;
+  margin-top: 6px;
+  font-size: 34px;
+  letter-spacing: 0.12em;
+}
 
 .history-group {
   display: flex;
@@ -434,6 +475,8 @@ button { color: inherit; touch-action: manipulation; }
   background: transparent;
 }
 .secondary-button:hover { border-color: var(--ink); }
+.primary-button:disabled,
+.secondary-button:disabled { cursor: default; opacity: .45; }
 
 .modal {
   border: 0;
@@ -514,6 +557,7 @@ button { color: inherit; touch-action: manipulation; }
   .app { padding: 16px 16px 0; }
   .top-actions { gap: 14px; }
   .text-button { padding-block: 10px; }
+  #newGameBtn { display: none; }
   .dock {
     flex-direction: column;
     align-items: stretch;
@@ -529,6 +573,8 @@ button { color: inherit; touch-action: manipulation; }
 @media (max-width: 380px) {
   .brand { font-size: 22px; }
   .top-actions { gap: 10px; }
+  #multiplayerBtn { font-size: 0; }
+  #multiplayerBtn::after { content: "multi"; font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
