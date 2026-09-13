@@ -18,7 +18,7 @@ A small browser version of a 4-card Cabo/Cambio variant. It supports the origina
 - Joker: 0 points.
 - J/Q/black K score 11/12/13 respectively.
 - Match discard: if one of your face-down cards has the same rank as the top discard, you can remove it. A wrong match adds a penalty card.
-- Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed.
+- Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table.
 
 ## Run locally
 

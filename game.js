@@ -27,16 +27,12 @@
     levelPending: document.getElementById("levelPending"),
     levelPendingText: document.getElementById("levelPendingText"),
     newGameNowBtn: document.getElementById("newGameNowBtn"),
-    resultSettingsBtn: document.getElementById("resultSettingsBtn"),
     rulesBtn: document.getElementById("rulesBtn"),
     closeRulesBtn: document.getElementById("closeRulesBtn"),
     rulesDialog: document.getElementById("rulesDialog"),
-    resultDialog: document.getElementById("resultDialog"),
-    resultTitle: document.getElementById("resultTitle"),
-    resultEyebrow: document.getElementById("resultEyebrow"),
-    playerScore: document.getElementById("playerScore"),
-    aiScore: document.getElementById("aiScore"),
-    playAgainBtn: document.getElementById("playAgainBtn"),
+    playerTally: document.getElementById("playerTally"),
+    aiTally: document.getElementById("aiTally"),
+    resultLine: document.getElementById("resultLine"),
     newGameBtn: document.getElementById("newGameBtn"),
   };
 
@@ -45,6 +41,7 @@
   let shownCount = 0;
 
   const MOVE_MS = 460;
+  const COUNT_MS = 520;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const POWER_LABELS = {
     "peek-own": "peek yours",
@@ -95,6 +92,7 @@
       caboCaller: null,
       finalTurnOwner: null,
       gameOver: false,
+      scores: null,
       history: [],
       level,
     };
@@ -332,7 +330,7 @@
   }
 
   function turnLabel() {
-    if (state.gameOver) return "round over";
+    if (state.gameOver) return state.phase === "counting" ? "counting up" : "round over";
     if (state.phase === "dealing") return "dealing";
     if (state.turn === "ai") return `computer's turn · ${state.level}`;
     return state.caboCaller === "ai" ? "your final turn" : "your turn";
@@ -340,7 +338,7 @@
 
   // The dock only offers what makes sense right now; drawing is done by tapping the piles.
   function availableActions() {
-    if (state.gameOver) return [["play again", startGame, true]];
+    if (state.gameOver) return state.phase === "counting" ? [["skip", settleCount]] : [["play again", startGame, true]];
     if (state.turn !== "player") return [];
     switch (state.phase) {
       case "initial-peek":
@@ -474,8 +472,8 @@
   }
 
   function startGame() {
-    if (els.resultDialog.open) els.resultDialog.close();
     state = freshState();
+    clearCountUp();
     record("round", `Cards dealt. The computer is on ${state.level}.`);
     // Clear the old table so the new hands are dealt from the deck, not slid over.
     for (const el of [els.aiHand, els.playerHand, els.held, els.discard]) el.innerHTML = "";
@@ -1149,22 +1147,135 @@
     return false;
   }
 
+  // The round ends on the table rather than behind a dialog: every card turns over where
+  // it lies, then each hand is counted one card at a time with the total ticking up beside it.
   function finishGame() {
     state.gameOver = true;
-    state.phase = "game-over";
+    state.phase = "counting";
     state.temporaryPlayerReveal.clear();
     state.temporaryAiReveal.clear();
+    state.scores = {
+      player: state.player.reduce((sum, c) => sum + score(c), 0),
+      ai: state.ai.reduce((sum, c) => sum + score(c), 0),
+    };
+    say("Hands are down. Counting them up…");
     render();
+    countUp();
+  }
 
-    const p = state.player.reduce((sum, c) => sum + score(c), 0);
-    const a = state.ai.reduce((sum, c) => sum + score(c), 0);
-    els.playerScore.textContent = String(p);
-    els.aiScore.textContent = String(a);
-    els.resultEyebrow.textContent = `${state.caboCaller === "player" ? "you called cabo" : "computer called cabo"} · ${state.level}`;
-    els.resultTitle.textContent = p < a ? "you win" : p > a ? "computer wins" : "tie game";
+  async function countUp() {
+    showTally(els.playerTally, "you");
+    showTally(els.aiTally, "computer");
+    if (reduceMotion.matches) return settleCount();
+    await pause(MOVE_MS + 240); // let the cards finish turning over first
+    for (const owner of ["player", "ai"]) {
+      if (state.phase !== "counting") return;
+      await countHand(owner);
+      await pause(300);
+    }
+    settleCount();
+  }
+
+  async function countHand(owner) {
+    const hand = owner === "player" ? state.player : state.ai;
+    const container = owner === "player" ? els.playerHand : els.aiHand;
+    const tally = owner === "player" ? els.playerTally : els.aiTally;
+    container.classList.add("tallying");
+    tally.classList.add("active");
+    let running = 0;
+    for (let i = 0; i < hand.length; i++) {
+      if (state.phase !== "counting") return; // skipped
+      const value = score(hand[i]);
+      running += value;
+      countCard(container.children[i], value);
+      setTally(tally, running);
+      await pause(COUNT_MS);
+    }
+    if (state.phase !== "counting") return;
+    container.classList.remove("tallying");
+    tally.classList.remove("active");
+  }
+
+  // One card joins the total: it lifts out of the dimmed hand and floats its value up.
+  function countCard(el, value) {
+    if (!el) return;
+    el.classList.add("counting");
+    later(() => {
+      el.classList.remove("counting");
+      el.classList.add("counted");
+    }, 300);
+
+    const chip = document.createElement("span");
+    chip.className = "count-chip";
+    chip.textContent = value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+    el.appendChild(chip);
+    if (reduceMotion.matches) {
+      later(() => chip.remove(), 700);
+      return;
+    }
+    chip
+      .animate(
+        [
+          { transform: "translate(-50%, 6px)", opacity: 0 },
+          { transform: "translate(-50%, -6px)", opacity: 1, offset: 0.3 },
+          { transform: "translate(-50%, -24px)", opacity: 0 },
+        ],
+        { duration: 900, easing: "cubic-bezier(.2, .75, .25, 1)" },
+      )
+      .finished.then(() => chip.remove(), () => chip.remove());
+  }
+
+  function setTally(tally, value) {
+    const total = tally.querySelector(".tally-total");
+    total.textContent = String(value);
+    if (reduceMotion.matches) return;
+    total.animate(
+      [{ transform: "scale(1)" }, { transform: "scale(1.24)" }, { transform: "scale(1)" }],
+      { duration: 320, easing: "ease-out" },
+    );
+  }
+
+  function showTally(tally, name) {
+    tally.querySelector(".tally-name").textContent = name;
+    tally.querySelector(".tally-total").textContent = "0";
+    tally.classList.remove("active", "winner");
+    tally.hidden = false;
+  }
+
+  // Both totals land, the winner is marked, and the table stays exactly as it is.
+  function settleCount() {
+    if (state.phase !== "counting") return;
+    state.phase = "game-over";
+    const { player: p, ai: a } = state.scores;
+
+    for (const [container, tally, total] of [[els.playerHand, els.playerTally, p], [els.aiHand, els.aiTally, a]]) {
+      container.classList.remove("tallying");
+      for (const card of container.children) {
+        card.classList.remove("counting");
+        card.classList.add("counted");
+      }
+      tally.classList.remove("active");
+      setTally(tally, total);
+    }
+    els.playerTally.classList.toggle("winner", p < a);
+    els.aiTally.classList.toggle("winner", a < p);
+
+    els.resultLine.textContent = p < a ? "you win" : p > a ? "computer wins" : "tie game";
+    els.resultLine.hidden = false;
+    say(`You ${p}, computer ${a}. ${state.caboCaller === "player" ? "You called cabo." : "The computer called cabo."}`);
     record("round", `Final scores: you ${p}, computer ${a}.`);
     renderHistory();
-    later(() => els.resultDialog.showModal(), 1200);
+    renderDock();
+  }
+
+  function clearCountUp() {
+    els.resultLine.hidden = true;
+    els.resultLine.textContent = "";
+    for (const tally of [els.playerTally, els.aiTally]) {
+      tally.hidden = true;
+      tally.classList.remove("active", "winner");
+    }
+    for (const container of [els.playerHand, els.aiHand]) container.classList.remove("tallying");
   }
 
   function pretty(card) {
@@ -1225,10 +1336,8 @@
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
   els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
   els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
-  els.playAgainBtn.addEventListener("click", () => { els.resultDialog.close(); startGame(); });
   // Settings: the computer's level (used from the next game) and the appearance (used now).
   function openSettings() {
-    if (els.resultDialog.open) els.resultDialog.close();
     for (const radio of els.levelRadios) radio.checked = radio.value === level;
     for (const radio of els.themeRadios) radio.checked = radio.value === themeSetting();
     updateLevelNote();
@@ -1251,7 +1360,6 @@
 
   els.settingsBtn.addEventListener("click", openSettings);
   els.closeSettingsBtn.addEventListener("click", () => els.settingsDialog.close());
-  els.resultSettingsBtn.addEventListener("click", openSettings);
   els.newGameNowBtn.addEventListener("click", () => {
     els.settingsDialog.close();
     startGame();

@@ -1,8 +1,9 @@
-import { prettyCard, powerFor } from "../shared/games/cabo.js";
+import { prettyCard, powerFor, scoreCard } from "../shared/games/cabo.js";
 import { loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
 import { closeLobby, setupLobby, showWaitingRoom } from "./lobby.js";
 
 const MOVE_MS = 460;
+const COUNT_MS = 520;
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const POWER_LABELS = {
   "peek-own": "peek yours",
@@ -39,14 +40,9 @@ const els = {
   rulesBtn: document.getElementById("rulesBtn"),
   closeRulesBtn: document.getElementById("closeRulesBtn"),
   rulesDialog: document.getElementById("rulesDialog"),
-  resultDialog: document.getElementById("resultDialog"),
-  resultTitle: document.getElementById("resultTitle"),
-  resultEyebrow: document.getElementById("resultEyebrow"),
-  playerScore: document.getElementById("playerScore"),
-  aiScore: document.getElementById("aiScore"),
-  opponentScoreLabel: document.getElementById("opponentScoreLabel"),
-  playAgainBtn: document.getElementById("playAgainBtn"),
-  resultSettingsBtn: document.getElementById("resultSettingsBtn"),
+  playerTally: document.getElementById("playerTally"),
+  aiTally: document.getElementById("aiTally"),
+  resultLine: document.getElementById("resultLine"),
   newGameBtn: document.getElementById("newGameBtn"),
 };
 
@@ -60,7 +56,10 @@ let reconnectDelay = 700;
 let reconnectTimer = null;
 let leaving = false;
 let connectedPlayerIds = [];
-let shownResultRound = null;
+let countedRound = null;
+let countToken = 0;
+let counting = false;
+let countProgress = { player: 0, opponent: 0, active: null };
 
 export function startOnlineGame(code) {
   roomCode = code;
@@ -102,11 +101,6 @@ function configurePage() {
   els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   els.settingsBtn.addEventListener("click", openSettings);
   els.closeSettingsBtn.addEventListener("click", () => els.settingsDialog.close());
-  els.resultSettingsBtn.addEventListener("click", openSettings);
-  els.playAgainBtn.addEventListener("click", () => {
-    els.resultDialog.close();
-    sendAction({ type: "REMATCH" });
-  });
 
   for (const radio of els.themeRadios) radio.addEventListener("change", () => applyTheme(radio.value));
   const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -199,7 +193,7 @@ function render() {
   renderDock();
   renderHistory();
   animateCards(before);
-  maybeShowResult();
+  syncCountUp();
 }
 
 function renderEmptyTable() {
@@ -283,8 +277,9 @@ function renderDock() {
 
   els.actions.innerHTML = "";
   for (const [label, action, primary] of availableActions()) {
-    const button = actionButton(label, primary ? "primary-button" : "secondary-button", () => sendAction(action));
-    button.disabled = !interactive;
+    const local = typeof action === "function";
+    const button = actionButton(label, primary ? "primary-button" : "secondary-button", local ? action : () => sendAction(action));
+    button.disabled = local ? false : !interactive;
     els.actions.appendChild(button);
   }
   say(statusMessage());
@@ -293,7 +288,7 @@ function renderDock() {
 function turnLabel() {
   if (state.status === "waiting") return "waiting for a friend";
   if (state.status === "peeking") return "opening peek";
-  if (state.status === "finished") return "round over";
+  if (state.status === "finished") return counting ? "counting up" : "round over";
   if (state.currentPlayerId === state.youId) return state.caboCallerId ? "your final turn" : "your turn";
   return `${otherPlayer()?.name || "opponent"}’s turn`;
 }
@@ -309,10 +304,12 @@ function statusMessage() {
       : "Memorize your bottom two cards, then press got it.";
   }
   if (state.status === "finished") {
+    if (counting) return "Hands are down. Counting them up…";
     const you = player(state.youId);
-    if (you?.rematchReady) return `Waiting for ${opponent?.name || "the other player"} to play again…`;
-    if (opponent?.rematchReady) return `${opponent.name} is ready to play again.`;
-    return "Round over.";
+    const summary = `You ${state.scores?.[state.youId] ?? 0}, ${opponent?.name || "opponent"} ${state.scores?.[opponent?.id] ?? 0}.`;
+    if (you?.rematchReady) return `${summary} Waiting for ${opponent?.name || "the other player"} to play again…`;
+    if (opponent?.rematchReady) return `${summary} ${opponent.name} is ready to play again.`;
+    return `${summary} ${player(state.caboCallerId)?.name || "Someone"} called cabo.`;
   }
   if (state.currentPlayerId !== state.youId) return `${opponent?.name || "Your opponent"} is taking their turn.`;
 
@@ -336,6 +333,7 @@ function statusMessage() {
 }
 
 function availableActions() {
+  if (counting) return [["skip", skipCountUp]];
   const legal = new Set(state.legalActions);
   if (legal.has("READY")) return [["got it", { type: "READY" }, true]];
   if (legal.has("REMATCH")) return [["play again", { type: "REMATCH" }, true]];
@@ -405,21 +403,178 @@ function renderHistory() {
   }
 }
 
-function maybeShowResult() {
-  if (state.status !== "finished" || shownResultRound === state.roundNumber) return;
-  shownResultRound = state.roundNumber;
-  const you = player(state.youId);
-  const opponent = otherPlayer();
-  const yourScore = state.scores[state.youId];
-  const opponentScore = state.scores[opponent.id];
-  els.playerScore.textContent = String(yourScore);
-  els.aiScore.textContent = String(opponentScore);
-  els.opponentScoreLabel.textContent = opponent.name;
-  els.resultEyebrow.textContent = `${player(state.caboCallerId)?.name || "player"} called cabo`;
-  els.resultTitle.textContent = yourScore < opponentScore ? "you win" : yourScore > opponentScore ? `${opponent.name} wins` : "tie game";
+// The round ends on the table rather than behind a dialog: every card turns over where it
+// lies, then each hand is counted one card at a time with the total ticking up beside it.
+function syncCountUp() {
+  if (state.status !== "finished") {
+    if (countedRound !== null) clearCountUp();
+    return;
+  }
+  if (countedRound === state.roundNumber) {
+    repaintCountUp(); // a fresh render rebuilt the cards; put the progress back on them
+    return;
+  }
+  countedRound = state.roundNumber;
+  runCountUp((countToken += 1));
+}
+
+async function runCountUp(token) {
+  counting = true;
+  countProgress = { player: 0, opponent: 0, active: null };
+  els.resultLine.hidden = true;
+  showTally(els.playerTally, player(state.youId)?.name || "you");
+  showTally(els.aiTally, otherPlayer()?.name || "opponent");
+  renderDock();
+
+  if (!reduceMotion.matches) {
+    await wait(MOVE_MS + 240); // let the cards finish turning over first
+    for (const side of ["player", "opponent"]) {
+      if (token !== countToken) return;
+      await countHand(side, token);
+      if (token !== countToken) return;
+      await wait(300);
+    }
+  }
+  if (token !== countToken) return;
+  settleCountUp();
+}
+
+async function countHand(side, token) {
+  const hand = handFor(side);
+  const container = side === "player" ? els.playerHand : els.aiHand;
+  const tally = side === "player" ? els.playerTally : els.aiTally;
+  countProgress.active = side;
+  container.classList.add("tallying");
+  tally.classList.add("active");
+  let running = 0;
+  for (let index = 0; index < hand.length; index += 1) {
+    const value = valueOf(hand[index]);
+    running += value;
+    countCard(container.children[index], value);
+    countProgress[side] = index + 1;
+    setTally(tally, running);
+    await wait(COUNT_MS);
+    if (token !== countToken) return; // skipped, or a new round started
+  }
+  countProgress.active = null;
+  container.classList.remove("tallying");
+  tally.classList.remove("active");
+}
+
+// One card joins the total: it lifts out of the dimmed hand and floats its value up.
+function countCard(element, value) {
+  if (!element) return;
+  element.classList.add("counting");
   setTimeout(() => {
-    if (state?.status === "finished" && !els.resultDialog.open) els.resultDialog.showModal();
-  }, 700);
+    element.classList.remove("counting");
+    element.classList.add("counted");
+  }, 300);
+
+  const chip = document.createElement("span");
+  chip.className = "count-chip";
+  chip.textContent = value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+  element.appendChild(chip);
+  if (reduceMotion.matches) {
+    setTimeout(() => chip.remove(), 700);
+    return;
+  }
+  chip
+    .animate(
+      [
+        { transform: "translate(-50%, 6px)", opacity: 0 },
+        { transform: "translate(-50%, -6px)", opacity: 1, offset: 0.3 },
+        { transform: "translate(-50%, -24px)", opacity: 0 },
+      ],
+      { duration: 900, easing: "cubic-bezier(.2, .75, .25, 1)" },
+    )
+    .finished.then(() => chip.remove(), () => chip.remove());
+}
+
+// Both totals land, the winner is marked, and the table stays exactly as it is.
+function settleCountUp() {
+  counting = false;
+  const opponent = otherPlayer();
+  const yourScore = state.scores?.[state.youId] ?? 0;
+  const opponentScore = opponent ? state.scores?.[opponent.id] ?? 0 : 0;
+  const winners = state.winnerIds || [];
+
+  countProgress = {
+    player: (player(state.youId)?.hand || []).length,
+    opponent: (opponent?.hand || []).length,
+    active: null,
+  };
+  repaintCountUp();
+  for (const [tally, total] of [[els.playerTally, yourScore], [els.aiTally, opponentScore]]) {
+    tally.classList.remove("active");
+    setTally(tally, total);
+  }
+  els.playerTally.classList.toggle("winner", winners.length === 1 && winners.includes(state.youId));
+  els.aiTally.classList.toggle("winner", winners.length === 1 && Boolean(opponent) && winners.includes(opponent.id));
+
+  els.resultLine.textContent = winners.length > 1
+    ? "tie game"
+    : winners.includes(state.youId)
+      ? "you win"
+      : `${opponent?.name || "opponent"} wins`;
+  els.resultLine.hidden = false;
+  renderDock();
+}
+
+function skipCountUp() {
+  countToken += 1; // stops the run in flight
+  settleCountUp();
+}
+
+function repaintCountUp() {
+  for (const [side, container] of [["player", els.playerHand], ["opponent", els.aiHand]]) {
+    container.classList.toggle("tallying", countProgress.active === side);
+    [...container.children].forEach((card, index) => {
+      card.classList.toggle("counted", index < countProgress[side]);
+    });
+  }
+}
+
+function clearCountUp() {
+  countToken += 1;
+  countedRound = null;
+  counting = false;
+  countProgress = { player: 0, opponent: 0, active: null };
+  els.resultLine.hidden = true;
+  els.resultLine.textContent = "";
+  for (const tally of [els.playerTally, els.aiTally]) {
+    tally.hidden = true;
+    tally.classList.remove("active", "winner");
+  }
+  for (const container of [els.playerHand, els.aiHand]) container.classList.remove("tallying");
+}
+
+function showTally(tally, name) {
+  tally.querySelector(".tally-name").textContent = name;
+  tally.querySelector(".tally-total").textContent = "0";
+  tally.classList.remove("active", "winner");
+  tally.hidden = false;
+}
+
+function setTally(tally, value) {
+  const total = tally.querySelector(".tally-total");
+  total.textContent = String(value);
+  if (reduceMotion.matches) return;
+  total.animate(
+    [{ transform: "scale(1)" }, { transform: "scale(1.24)" }, { transform: "scale(1)" }],
+    { duration: 320, easing: "ease-out" },
+  );
+}
+
+function handFor(side) {
+  return (side === "player" ? player(state.youId)?.hand : otherPlayer()?.hand) || [];
+}
+
+function valueOf(card) {
+  return card?.rank ? scoreCard(card) : 0;
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function revealedCardName() {
@@ -544,7 +699,6 @@ function leaveGame() {
 }
 
 function openSettings() {
-  if (els.resultDialog.open) els.resultDialog.close();
   for (const radio of els.themeRadios) radio.checked = radio.value === themeSetting();
   els.settingsDialog.showModal();
 }
