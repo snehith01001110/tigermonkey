@@ -91,19 +91,11 @@
         <label class="field-label" for="playerName">your name</label>
         <input id="playerName" class="text-input" type="text" maxlength="20" autocomplete="nickname" placeholder="player" />
         <button id="createRoomBtn" class="primary-button full" type="button">create a room</button>
-
-        <div id="joinRoomFields" class="join-room-fields">
-          <span class="form-divider">or join one</span>
-          <label class="field-label" for="roomCode">room code</label>
-          <input id="roomCode" class="text-input room-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123" />
-          <button id="joinRoomBtn" class="secondary-button full" type="button">join room</button>
-        </div>
+        <button id="joinRoomBtn" class="primary-button full" type="button" hidden>join game</button>
         <p id="multiplayerError" class="form-error" role="alert" hidden></p>
       </div>
 
       <div id="waitingRoom" class="waiting-room" hidden>
-        <span class="muted">room code</span>
-        <strong id="waitingRoomCode" class="room-code">ABC123</strong>
         <p id="waitingRoomMessage">Waiting for another player…</p>
         <button id="copyInviteBtn" class="primary-button full" type="button">copy invite link</button>
       </div>

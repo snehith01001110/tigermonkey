@@ -14,12 +14,9 @@ const els = {
   form: document.getElementById("multiplayerForm"),
   name: document.getElementById("playerName"),
   create: document.getElementById("createRoomBtn"),
-  joinFields: document.getElementById("joinRoomFields"),
-  code: document.getElementById("roomCode"),
   join: document.getElementById("joinRoomBtn"),
   error: document.getElementById("multiplayerError"),
   waiting: document.getElementById("waitingRoom"),
-  waitingCode: document.getElementById("waitingRoomCode"),
   waitingMessage: document.getElementById("waitingRoomMessage"),
   copy: document.getElementById("copyInviteBtn"),
 };
@@ -38,15 +35,12 @@ export function setupLobby({ roomCode = "", autoOpen = false, onJoined = null, a
     els.close.addEventListener("click", closeLobby);
     els.create.addEventListener("click", createRoom);
     els.join.addEventListener("click", joinRoom);
-    els.code.addEventListener("input", () => { els.code.value = normalizeRoomCode(els.code.value); });
-    for (const input of [els.name, els.code]) {
-      input.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        if (inviteCode || els.code.value) joinRoom();
-        else createRoom();
-      });
-    }
+    els.name.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (inviteCode) joinRoom();
+      else createRoom();
+    });
     els.copy.addEventListener("click", copyInvite);
   }
   if (attachButton && !buttonAttached) {
@@ -55,20 +49,15 @@ export function setupLobby({ roomCode = "", autoOpen = false, onJoined = null, a
   }
 
   try { els.name.value = localStorage.getItem("tigermonkey-player-name") || ""; } catch {}
-  if (inviteCode) els.code.value = inviteCode;
   if (autoOpen) openLobby(inviteCode);
 }
 
 export function openLobby(roomCode = inviteCode) {
   inviteCode = normalizeRoomCode(roomCode);
   showForm();
-  els.title.textContent = inviteCode ? `join ${inviteCode}` : "play together";
+  els.title.textContent = inviteCode ? "join game" : "play together";
   els.create.hidden = Boolean(inviteCode);
-  els.joinFields.querySelector(".form-divider").hidden = Boolean(inviteCode);
-  els.code.closest(".join-room-fields").querySelector('.field-label[for="roomCode"]').hidden = Boolean(inviteCode);
-  els.code.hidden = Boolean(inviteCode);
-  els.code.value = inviteCode || els.code.value;
-  els.join.textContent = inviteCode ? "join room" : "join room";
+  els.join.hidden = !inviteCode;
   if (!els.dialog.open) els.dialog.showModal();
   queueMicrotask(() => els.name.focus());
 }
@@ -78,7 +67,6 @@ export function showWaitingRoom(roomCode, message = "Waiting for another player�
   els.form.hidden = true;
   els.waiting.hidden = false;
   els.title.textContent = "room ready";
-  els.waitingCode.textContent = inviteCode;
   els.waitingMessage.textContent = message;
   els.close.hidden = false;
   if (!els.dialog.open) els.dialog.showModal();
@@ -101,8 +89,8 @@ async function createRoom() {
 }
 
 async function joinRoom() {
-  const code = inviteCode || normalizeRoomCode(els.code.value);
-  if (code.length !== 6) return showError("Enter the six-character room code.");
+  const code = inviteCode;
+  if (code.length !== 6) return showError("This invite link is invalid.");
   const existing = loadCredential(code);
   if (existing) return finish(existing);
   await submit(`/api/rooms/${code}/join`, { roomCode: code });
@@ -161,14 +149,13 @@ function setBusy(busy) {
   els.create.disabled = busy;
   els.join.disabled = busy;
   els.name.disabled = busy;
-  els.code.disabled = busy;
   if (busy) {
     els.error.hidden = true;
     if (!els.create.hidden) els.create.textContent = "creating…";
     els.join.textContent = "joining…";
   } else {
     els.create.textContent = "create a room";
-    els.join.textContent = "join room";
+    els.join.textContent = "join game";
   }
 }
 

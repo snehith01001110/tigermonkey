@@ -52,6 +52,7 @@ The smoke test expects `npm run dev:api` to already be running.
 - `src/client/online.js` renders a player-specific, redacted room view using the existing table design.
 
 The server owns shuffling and validates every action. Hidden cards are removed from each outgoing player view rather than merely hidden with CSS.
+Players join through the host's invite link; the room identifier stays in the URL and is not part of the visible interface.
 
 ## Deploy
 

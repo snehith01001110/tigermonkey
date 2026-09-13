@@ -182,24 +182,10 @@ button { color: inherit; touch-action: manipulation; }
   font: inherit;
 }
 .text-input:focus { border-color: var(--ink); }
-.room-input { letter-spacing: 0.14em; text-transform: uppercase; }
-.join-room-fields { display: grid; }
-.form-divider {
-  margin: 21px 0 0;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-}
 .form-error { margin: 14px 0 0; color: var(--red-text); font-size: 13px; }
 .multiplayer-content .full { margin-top: 12px; }
 .waiting-room { padding-top: 20px; text-align: center; }
 .waiting-room p { color: var(--muted); }
-.room-code {
-  display: block;
-  margin-top: 6px;
-  font-size: 34px;
-  letter-spacing: 0.12em;
-}
 
 .history-group {
   display: flex;

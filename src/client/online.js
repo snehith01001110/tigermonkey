@@ -119,7 +119,7 @@ function configurePage() {
   });
 
   say("Connecting to the room…");
-  els.turnLabel.textContent = `room ${roomCode}`;
+  els.turnLabel.textContent = "online game";
   renderEmptyTable();
 }
 
@@ -291,7 +291,7 @@ function renderDock() {
 }
 
 function turnLabel() {
-  if (state.status === "waiting") return `room ${roomCode}`;
+  if (state.status === "waiting") return "waiting for a friend";
   if (state.status === "peeking") return "opening peek";
   if (state.status === "finished") return "round over";
   if (state.currentPlayerId === state.youId) return state.caboCallerId ? "your final turn" : "your turn";
