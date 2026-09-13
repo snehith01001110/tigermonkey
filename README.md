@@ -56,7 +56,9 @@ Players join through the host's invite link; the room identifier stays in the UR
 
 ## Deploy
 
-The frontend remains a static GitHub Pages site with no build step. Pushing the default branch runs `.github/workflows/pages.yml`.
+The frontend remains a static GitHub Pages site with no build step. GitHub's own Pages builder publishes the
+default branch on every push, so there is no deployment workflow to maintain; `.nojekyll` keeps the files as they
+are and `CNAME` holds the custom domain.
 
 Deploy the multiplayer Worker with:
 
