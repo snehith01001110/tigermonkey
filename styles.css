@@ -308,6 +308,29 @@ button { color: inherit; touch-action: manipulation; }
 .hand.tallying .card.counting { opacity: 1; }
 .card.counting { transform: translateY(-10px); }
 
+/* The value a card was counted for stays in its corner, so once the round is settled you
+   can read what each card in both hands was worth. */
+.card-value {
+  position: absolute;
+  top: calc(var(--card-h) * 0.05);
+  right: calc(var(--card-w) * 0.06);
+  z-index: 3;
+  padding: 2px 7px;
+  border-radius: 999px;
+  /* Keyed to the card's own colors, since the card face is paper in both themes. */
+  background: var(--card-ink);
+  color: var(--card-paper);
+  font-size: clamp(9px, calc(var(--card-h) * 0.115), 13px);
+  font-weight: 700;
+  font-synthesis: weight style;
+  line-height: 1.25;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: value-in 260ms var(--ease);
+}
+
+@keyframes value-in { from { opacity: 0; transform: scale(0.7); } }
+
 .count-chip {
   position: absolute;
   left: 50%;
@@ -655,6 +678,7 @@ button { color: inherit; touch-action: manipulation; }
 
 @media (prefers-reduced-motion: reduce) {
   .card, .deck-layer { transition: none; }
+  .card-value { animation: none; }
   .tally, .result-line { animation: none; }
   .hand.tallying .card { opacity: 1; }
   .card.counting { transform: none; }

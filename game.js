@@ -89,6 +89,7 @@
       temporaryPlayerReveal: new Set(),
       temporaryAiReveal: new Set(),
       lifted: new Set(),
+      counted: { player: 0, ai: 0 },
       caboCaller: null,
       finalTurnOwner: null,
       gameOver: false,
@@ -273,11 +274,26 @@
       const faceUp = state.gameOver || reveal.has(index);
       const el = cardElement(card, { faceUp, index, owner, selectable: canSelectCard(owner, index) });
       el.dataset.deal = String(index * 2 + (owner === "ai" ? 1 : 0));
+      if (index < state.counted[owner]) el.appendChild(valueBadge(score(card)));
       if (selected === index) el.classList.add("selected");
       if (state.lifted.has(`${owner}:${index}`)) el.classList.add("lifted");
       el.addEventListener("click", () => handleCardClick(owner, index));
       container.appendChild(el);
     });
+  }
+
+  // Once a card has been counted its value stays on it, so at the end of the round you can
+  // read what every card in both hands was worth.
+  function valueBadge(value) {
+    const badge = document.createElement("span");
+    badge.className = "card-value";
+    badge.textContent = points(value);
+    badge.setAttribute("aria-label", `worth ${value}`);
+    return badge;
+  }
+
+  function points(value) {
+    return value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
   }
 
   // The spot a discarded card left behind: it holds the grid open so nothing shifts.
@@ -1205,6 +1221,7 @@
       if (!hand[i]) continue;
       const value = score(hand[i]);
       running += value;
+      state.counted[owner] = i + 1;
       countCard(container.children[i], value);
       setTally(tally, running);
       await pause(COUNT_MS);
@@ -1218,6 +1235,7 @@
   function countCard(el, value) {
     if (!el) return;
     el.classList.add("counting");
+    el.appendChild(valueBadge(value));
     later(() => {
       el.classList.remove("counting");
       el.classList.add("counted");
@@ -1225,7 +1243,7 @@
 
     const chip = document.createElement("span");
     chip.className = "count-chip";
-    chip.textContent = value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+    chip.textContent = points(value);
     el.appendChild(chip);
     if (reduceMotion.matches) {
       later(() => chip.remove(), 700);
@@ -1266,12 +1284,18 @@
     state.phase = "game-over";
     const { player: p, ai: a } = state.scores;
 
-    for (const [container, tally, total] of [[els.playerHand, els.playerTally, p], [els.aiHand, els.aiTally, a]]) {
+    for (const [owner, container, tally, total] of [
+      ["player", els.playerHand, els.playerTally, p],
+      ["ai", els.aiHand, els.aiTally, a],
+    ]) {
+      const hand = owner === "player" ? state.player : state.ai;
+      state.counted[owner] = hand.length;
       container.classList.remove("tallying");
-      for (const card of container.children) {
+      [...container.children].forEach((card, i) => {
         card.classList.remove("counting");
         card.classList.add("counted");
-      }
+        if (hand[i] && !card.querySelector(".card-value")) card.appendChild(valueBadge(score(hand[i])));
+      });
       tally.classList.remove("active");
       setTally(tally, total);
     }
