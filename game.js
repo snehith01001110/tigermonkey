@@ -24,7 +24,6 @@
     closeSettingsBtn: document.getElementById("closeSettingsBtn"),
     levelRadios: document.querySelectorAll('input[name="level"]'),
     themeRadios: document.querySelectorAll('input[name="theme"]'),
-    levelNote: document.getElementById("levelNote"),
     levelPending: document.getElementById("levelPending"),
     levelPendingText: document.getElementById("levelPendingText"),
     newGameNowBtn: document.getElementById("newGameNowBtn"),
@@ -56,11 +55,6 @@
   };
   const WHO_LABELS = { you: "you", computer: "computer", round: "round" };
   const LEVELS = ["easy", "medium", "hard"];
-  const LEVEL_NOTES = {
-    easy: "Forgets cards once they move and only swaps in cards it's sure about.",
-    medium: "Swaps out its weakest cards, even unseen ones, and only uses powers when they help.",
-    hard: "Also follows cards as they move, counts cards, and waits for the right moment to call Cabo.",
-  };
   let level = savedLevel();
 
   function savedLevel() {
@@ -1242,7 +1236,6 @@
   }
 
   function updateLevelNote() {
-    els.levelNote.textContent = LEVEL_NOTES[level];
     els.levelPending.hidden = level === state.level || state.gameOver;
     els.levelPendingText.textContent = `This game stays on ${state.level}.`;
   }

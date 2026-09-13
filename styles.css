@@ -69,7 +69,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-family: "Kelly Slab", ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  /* Kelly Slab has one weight; don't let the browser smear a fake bold onto it. */
+  font-synthesis: style;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -90,15 +92,17 @@ button { color: inherit; touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   min-height: 42px;
 }
 
 .brand {
   color: var(--ink);
   text-decoration: none;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  font-size: 18px;
+  font-family: "Grenze Gotisch", "Kelly Slab", serif;
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1;
 }
 
 .top-actions { display: flex; align-items: center; gap: 18px; }
@@ -109,6 +113,7 @@ button { color: inherit; touch-action: manipulation; }
   padding: 6px 0;
   cursor: pointer;
   color: var(--muted);
+  white-space: nowrap;
 }
 .text-button:hover, .icon-button:hover { color: var(--ink); }
 .gear-button { display: inline-flex; align-items: center; }
@@ -318,6 +323,8 @@ button { color: inherit; touch-action: manipulation; }
   justify-content: center;
   background: var(--card-paper);
   color: var(--card-ink);
+  /* Card indices need to read at a glance, so they may use a synthesized bold. */
+  font-synthesis: weight style;
   transform: rotateY(180deg);
 }
 
@@ -440,8 +447,8 @@ button { color: inherit; touch-action: manipulation; }
 .modal::backdrop { background: rgba(27, 25, 21, .24); backdrop-filter: blur(3px); }
 .modal-content { padding: 24px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; }
-.modal h2 { margin: 0; font-size: 28px; letter-spacing: -.05em; }
-.icon-button { font-size: 28px; line-height: 1; }
+.modal h2 { margin: 0; font-size: 28px; }
+.icon-button { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 28px; line-height: 1; }
 .rules-grid { display: grid; gap: 8px; margin: 22px 0; }
 .rules-grid > div { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .rules-grid span { color: var(--muted); }
@@ -483,7 +490,6 @@ button { color: inherit; touch-action: manipulation; }
   .segmented label:hover input:not(:checked) + span { color: var(--ink); }
 }
 .setting-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.level-note { min-height: 3em; }
 .inline-link {
   padding: 0;
   border: 0;
@@ -517,6 +523,12 @@ button { color: inherit; touch-action: manipulation; }
   }
   .status, .turn-label { align-items: center; justify-content: center; }
   .actions { justify-content: center; }
+}
+
+/* The smallest phones: shrink the logo a touch so the whole top bar stays on one line. */
+@media (max-width: 380px) {
+  .brand { font-size: 22px; }
+  .top-actions { gap: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
