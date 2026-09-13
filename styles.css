@@ -241,6 +241,81 @@ button { color: inherit; touch-action: manipulation; }
   flex-wrap: wrap-reverse;
 }
 
+/* A hand stays centered on the table with its score tally parked beside it, so the
+   round can be counted up in place instead of behind a dialog. */
+.hand-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Parked beside the hand rather than laid out with it, so the cards stay centered. */
+.tally {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--card-w) + var(--gap) / 2 + var(--card-w) * 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--paper);
+  transform: translateY(-50%);
+  animation: tally-in 320ms var(--ease);
+}
+.tally-name,
+.tally.winner::after {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.tally-name {
+  max-width: 13ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tally.winner::after { content: "winner"; }
+.tally-total {
+  font-size: calc(var(--card-h) * 0.26);
+  font-weight: 700;
+  font-synthesis: weight style;
+  line-height: 1;
+}
+.tally.active { border-color: var(--ink); }
+.tally.winner { border-color: var(--ink); box-shadow: var(--shadow); }
+
+@keyframes tally-in { from { opacity: 0; transform: translate(0, calc(-50% + 6px)); } }
+
+/* While a hand is counted, the card being added lifts and the rest dim, so the
+   running total and the cards it came from read as one motion. */
+.hand.tallying .card { opacity: 0.42; transition: opacity 220ms var(--ease), transform 160ms var(--ease); }
+.hand.tallying .card.counted,
+.hand.tallying .card.counting { opacity: 1; }
+.card.counting { transform: translateY(-10px); }
+
+.count-chip {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--card-h) * -0.14);
+  z-index: 4;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 700;
+  font-synthesis: weight style;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
 .table-center {
   display: flex;
   align-items: center;
@@ -431,6 +506,14 @@ button { color: inherit; touch-action: manipulation; }
 .turn-label.active::before { opacity: 1; }
 
 .message { font-size: 14px; line-height: 1.4; }
+.result-line {
+  font-family: "Grenze Gotisch", "Kelly Slab", serif;
+  font-weight: 600;
+  font-size: clamp(20px, 3.2vh, 30px);
+  line-height: 1.05;
+  animation: result-in 420ms var(--ease);
+}
+@keyframes result-in { from { opacity: 0; transform: translateY(6px); } }
 .muted { color: var(--muted); }
 
 .actions {
@@ -530,17 +613,14 @@ button { color: inherit; touch-action: manipulation; }
   cursor: pointer;
 }
 
-.result-content { text-align: center; }
-.result-content .secondary-button { margin-top: 8px; }
-.result-content h2 { margin-top: 4px; font-size: 36px; }
-.score-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 28px 0; }
-.score-row > div { border: 1px solid var(--line); border-radius: 13px; padding: 18px; display: flex; flex-direction: column; gap: 4px; }
-.score-row span { color: var(--muted); font-size: 12px; }
-.score-row strong { font-size: 28px; }
 .full { width: 100%; }
 
 @media (max-width: 620px) {
   .app { padding: 16px 16px 0; }
+  .tally { left: calc(50% + var(--card-w) + var(--gap) / 2 + var(--card-w) * 0.16); padding: 6px 9px; }
+  .tally-name { font-size: 9px; }
+  /* The verdict says "round over" plainly enough on a phone; drop the label it replaces. */
+  .status:has(.result-line:not([hidden])) .turn-label { display: none; }
   .top-actions { gap: 14px; }
   .text-button { padding-block: 10px; }
   #newGameBtn { display: none; }
@@ -565,4 +645,7 @@ button { color: inherit; touch-action: manipulation; }
 
 @media (prefers-reduced-motion: reduce) {
   .card, .deck-layer { transition: none; }
+  .tally, .result-line { animation: none; }
+  .hand.tallying .card { opacity: 1; }
+  .card.counting { transform: none; }
 }

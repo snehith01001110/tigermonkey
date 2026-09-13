@@ -37,7 +37,13 @@
       </aside>
 
       <section class="table" aria-label="Cabo table">
-        <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
+        <div class="hand-row">
+          <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
+          <div id="aiTally" class="tally" hidden>
+            <span class="tally-name">computer</span>
+            <span class="tally-total">0</span>
+          </div>
+        </div>
 
         <div class="table-center">
           <button id="deck" class="deck" type="button" aria-label="Draw from deck">
@@ -48,13 +54,20 @@
           <div id="discard" class="slot discard-pile" aria-label="Discard pile"></div>
         </div>
 
-        <div id="playerHand" class="hand" aria-label="Your cards"></div>
+        <div class="hand-row">
+          <div id="playerHand" class="hand" aria-label="Your cards"></div>
+          <div id="playerTally" class="tally" hidden>
+            <span class="tally-name">you</span>
+            <span class="tally-total">0</span>
+          </div>
+        </div>
       </section>
     </div>
 
     <footer class="dock">
       <div class="status" aria-live="polite">
         <span id="turnLabel" class="turn-label">dealing</span>
+        <span id="resultLine" class="result-line" hidden></span>
         <span id="message" class="message">Dealing…</span>
       </div>
       <div id="actions" class="actions"></div>
@@ -76,7 +89,7 @@
         <div><strong>K</strong><span>check theirs, then choose whether to swap</span></div>
       </div>
       <p class="small">Powers only trigger when the card is drawn from the deck and discarded. Red kings are −1. Jokers are 0. If you think one of your face-down cards matches the top discard, use <em>match discard</em>. A wrong match adds a penalty card.</p>
-      <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed.</p>
+      <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table.</p>
     </div>
   </dialog>
 
@@ -140,19 +153,6 @@
           <label><input type="radio" name="theme" value="dark" /><span>dark</span></label>
         </div>
       </div>
-    </div>
-  </dialog>
-
-  <dialog id="resultDialog" class="modal result-modal">
-    <div class="modal-content result-content">
-      <div id="resultEyebrow" class="muted">round over</div>
-      <h2 id="resultTitle">you win</h2>
-      <div class="score-row">
-        <div><span>you</span><strong id="playerScore">0</strong></div>
-        <div><span id="opponentScoreLabel">computer</span><strong id="aiScore">0</strong></div>
-      </div>
-      <button id="playAgainBtn" class="primary-button full" type="button">play again</button>
-      <button id="resultSettingsBtn" class="secondary-button full" type="button">settings</button>
     </div>
   </dialog>
 
