@@ -20,6 +20,11 @@
     closeHistoryBtn: document.getElementById("closeHistoryBtn"),
     themeBtn: document.getElementById("themeBtn"),
     themeColor: document.querySelector('meta[name="theme-color"]'),
+    newGameDialog: document.getElementById("newGameDialog"),
+    closeNewGameBtn: document.getElementById("closeNewGameBtn"),
+    levelOptions: document.querySelectorAll(".level-option"),
+    dealBtn: document.getElementById("dealBtn"),
+    changeLevelBtn: document.getElementById("changeLevelBtn"),
     rulesBtn: document.getElementById("rulesBtn"),
     closeRulesBtn: document.getElementById("closeRulesBtn"),
     rulesDialog: document.getElementById("rulesDialog"),
@@ -46,6 +51,16 @@
     "check-swap": "check, then swap",
   };
   const WHO_LABELS = { you: "you", computer: "computer", round: "round" };
+  const LEVELS = ["easy", "medium", "hard"];
+  let level = savedLevel();
+
+  function savedLevel() {
+    try {
+      const saved = localStorage.getItem("level");
+      if (LEVELS.includes(saved)) return saved;
+    } catch {}
+    return "medium";
+  }
 
   function freshState() {
     const deck = shuffle(makeDeck());
@@ -78,6 +93,7 @@
       finalTurnOwner: null,
       gameOver: false,
       history: [],
+      level,
     };
   }
 
@@ -315,7 +331,7 @@
   function turnLabel() {
     if (state.gameOver) return "round over";
     if (state.phase === "dealing") return "dealing";
-    if (state.turn === "ai") return "computer's turn";
+    if (state.turn === "ai") return `computer's turn · ${state.level}`;
     return state.caboCaller === "ai" ? "your final turn" : "your turn";
   }
 
@@ -457,7 +473,7 @@
   function startGame() {
     if (els.resultDialog.open) els.resultDialog.close();
     state = freshState();
-    record("round", "Cards dealt.");
+    record("round", `Cards dealt. The computer is on ${state.level}.`);
     // Clear the old table so the new hands are dealt from the deck, not slid over.
     for (const el of [els.aiHand, els.playerHand, els.held, els.discard]) el.innerHTML = "";
     say("Dealing…");
@@ -505,6 +521,9 @@
     state.player[index] = state.drawn;
     state.discard.push(old);
     state.playerKnown.add(index);
+    // The computer loses track of this spot, unless the new card came face-up from the discard.
+    state.aiKnowsPlayer.delete(index);
+    if (tracks() && state.drawnSource === "discard") state.aiKnowsPlayer.add(index);
     state.drawn = null;
     state.drawnSource = null;
     record("you", `Put it in your ${spot("player", index)} spot, discarding `, old, ".");
@@ -635,6 +654,8 @@
   }
 
   function swapCards(playerIndex, aiIndex) {
+    const aiKnewOwn = state.aiKnown.has(aiIndex);
+    const aiKnewYours = state.aiKnowsPlayer.has(playerIndex);
     const temp = state.player[playerIndex];
     state.player[playerIndex] = state.ai[aiIndex];
     state.ai[aiIndex] = temp;
@@ -642,6 +663,9 @@
     state.playerKnown.delete(playerIndex);
     state.aiKnown.delete(aiIndex);
     state.aiKnowsPlayer.delete(playerIndex);
+    // A computer that tracks cards watches which ones moved, so what it knew moves with them.
+    if (tracks() && aiKnewOwn) state.aiKnowsPlayer.add(playerIndex);
+    if (tracks() && aiKnewYours) state.aiKnown.add(aiIndex);
   }
 
   function enterMatchMode() {
@@ -676,6 +700,7 @@
       say(`Correct — ${pretty(card)} is gone. Now take your turn.`);
     } else {
       record("you", `Tried to match with your ${where} card, `, card, ". Wrong, so took a penalty card.");
+      if (tracks()) state.aiKnowsPlayer.add(index); // the wrong card was shown
       refillDeckIfNeeded();
       state.player.push(state.deck.pop());
       say(`Wrong match. ${pretty(card)} doesn't match ${pretty(top)} — penalty card added.`);
@@ -746,16 +771,14 @@
       await step(`Computer matched the discard with its ${matched.rank}.`, 1000);
     }
 
-    const knownHighest = highestKnownIndex(state.ai, state.aiKnown);
-    const discardTop = state.discard[state.discard.length - 1];
-    const takeDiscard = discardTop && knownHighest !== null && desirable(discardTop) && score(discardTop) < score(state.ai[knownHighest]);
+    const takeAt = planDiscardTake();
 
-    if (takeDiscard) {
+    if (takeAt !== null) {
       state.aiDrawn = state.discard.pop();
       state.aiDrawnShown = true;
       record("computer", "Took ", state.aiDrawn, " from the discard.");
       await step(`Computer takes the ${pretty(state.aiDrawn)}.`, 800);
-      aiKeepDrawn(knownHighest);
+      aiKeepDrawn(takeAt);
       await step("Computer swapped it into its hand.", 900);
     } else {
       refillDeckIfNeeded();
@@ -781,12 +804,11 @@
   }
 
   async function aiUseDrawnCard(card) {
-    const highIndex = highestKnownIndex(state.ai, state.aiKnown);
     const power = powerFor(card);
-    const shouldKeep = highIndex !== null && score(card) < score(state.ai[highIndex]) && (score(card) <= 6 || !power);
+    const keepAt = chooseKeepSpot(card, power);
 
-    if (shouldKeep) {
-      aiKeepDrawn(highIndex);
+    if (keepAt !== null) {
+      aiKeepDrawn(keepAt);
       await step("Computer kept it and threw away one of its cards.", 1000);
       return;
     }
@@ -829,6 +851,186 @@
   }
 
   async function aiUsePower(power) {
+    return smart() ? aiUsePowerSmart(power) : aiUsePowerEasy(power);
+  }
+
+  // --- Medium and hard ---------------------------------------------------------
+
+  // Knobs for medium and hard, in card points. take/keep: how much better a card must be
+  // before it's swapped in (power: the same, when the drawn card's power could be used
+  // instead). lead: how far ahead of you it wants to be to call Cabo, plus risk for each of
+  // its own cards it hasn't seen. improve/floor: how much it assumes each of your cards it
+  // hasn't seen gets better per turn, down to floor; kept caps a card you've seen and kept.
+  // count: work out the unseen average by counting cards instead of assuming 6.2.
+  // track: follow cards it knows as they're swapped between hands or taken from the discard.
+  const TUNING = {
+    medium: { take: 2, keep: 0.5, power: 2, caboTurns: 3, caboLow: 4, lead: 3, risk: 2, improve: 0.6, floor: 1.5, count: false, track: false },
+    hard: { take: 2, keep: 0.5, power: 2, caboTurns: 4, caboLow: 4, lead: 4, risk: 2, improve: 0.8, floor: 1.5, kept: 3, count: true, track: true },
+  };
+
+  function tune() {
+    return TUNING[state.level];
+  }
+
+  function tracks() {
+    return smart() && tune().track;
+  }
+
+  function smart() {
+    return state.level !== "easy";
+  }
+
+  // After you call Cabo the computer has one turn left, so any gain is worth taking.
+  function finalTurn() {
+    return state.caboCaller === "player";
+  }
+
+  // The average value of the cards the computer hasn't seen. Hard counts cards to work
+  // it out; medium assumes an average deck.
+  function unseenAverage() {
+    if (!tune().count) return 6.2;
+    const seen = new Set(state.discard.map((card) => card.id));
+    state.aiKnown.forEach((i) => state.ai[i] && seen.add(state.ai[i].id));
+    state.aiKnowsPlayer.forEach((i) => state.player[i] && seen.add(state.player[i].id));
+    if (state.aiDrawn) seen.add(state.aiDrawn.id);
+    const unseen = [...state.deck, ...state.ai, ...state.player].filter((card) => !seen.has(card.id));
+    return unseen.length ? unseen.reduce((sum, card) => sum + score(card), 0) / unseen.length : 6.2;
+  }
+
+  // The computer's weakest spot: its highest known card, or a card it hasn't seen, valued
+  // at the unseen average. Known cards win ties, since that gain is certain.
+  function worstAiSlot() {
+    const avg = unseenAverage();
+    let worst = null;
+    state.ai.forEach((card, i) => {
+      const known = state.aiKnown.has(i);
+      const value = known ? score(card) : avg;
+      if (!worst || value > worst.value || (value === worst.value && known)) worst = { index: i, value, known };
+    });
+    return worst;
+  }
+
+  function lowestKnownPlayerIndex() {
+    const known = [...state.aiKnowsPlayer].filter((i) => state.player[i]);
+    if (!known.length) return null;
+    return known.reduce((best, i) => (score(state.player[i]) < score(state.player[best]) ? i : best), known[0]);
+  }
+
+  // The hand spot the computer would fill with the top discard, or null to draw instead.
+  function planDiscardTake() {
+    const top = state.discard[state.discard.length - 1];
+    if (!top) return null;
+    if (!smart()) {
+      const high = highestKnownIndex(state.ai, state.aiKnown);
+      return high !== null && desirable(top) && score(top) < score(state.ai[high]) ? high : null;
+    }
+    const worst = worstAiSlot();
+    const margin = finalTurn() ? 0.5 : tune().take;
+    return worst && worst.value - score(top) >= margin ? worst.index : null;
+  }
+
+  // Where the computer would keep a drawn card, or null to discard it (and use any power).
+  function chooseKeepSpot(card, power) {
+    if (!smart()) {
+      const high = highestKnownIndex(state.ai, state.aiKnown);
+      return high !== null && score(card) < score(state.ai[high]) && (score(card) <= 6 || !power) ? high : null;
+    }
+    const worst = worstAiSlot();
+    if (!worst) return null;
+    const gain = worst.value - score(card);
+    if (finalTurn()) return gain > 0 ? worst.index : null;
+    // A power is worth something too, so a small gain loses out to using it.
+    const needed = power ? tune().power : tune().keep;
+    return gain > needed ? worst.index : null;
+  }
+
+  // Call Cabo once the hand is low, or clearly lower than the computer's read of yours.
+  function smartShouldCallCabo() {
+    const t = tune();
+    if (state.aiTurnCount < t.caboTurns) return false;
+    const avg = unseenAverage();
+    const unknownOwn = state.ai.filter((_, i) => !state.aiKnown.has(i)).length;
+    const own = state.ai.reduce((sum, card, i) => sum + (state.aiKnown.has(i) ? score(card) : avg), 0);
+    const yours = state.player.reduce((sum, _, i) => sum + yourSpotValue(i, avg), 0);
+    if (unknownOwn === 0 && own <= t.caboLow) return true;
+    if (own + t.lead + t.risk * unknownOwn < yours) return true;
+    return state.aiTurnCount >= 10 && own <= 10;
+  }
+
+  // What the computer thinks one of your cards is worth. Some it knows outright; the rest it
+  // assumes get a little better each turn. Hard also reads your moves: a card you've looked
+  // at and kept is probably a low one.
+  function yourSpotValue(i, avg) {
+    if (state.aiKnowsPlayer.has(i)) return score(state.player[i]);
+    const t = tune();
+    const guess = Math.max(avg - t.improve * state.playerTurnCount, t.floor);
+    return t.kept !== undefined && state.playerKnown.has(i) ? Math.min(guess, t.kept) : guess;
+  }
+
+  // Use a power only when it helps, aiming at the cards the computer knows about.
+  async function aiUsePowerSmart(power) {
+    const pass = async () => {
+      record("computer", "Passed on the power.");
+      await step("Computer passes on the power.", 800);
+    };
+
+    if (power === "peek-own" || power === "peek-opponent") {
+      const own = power === "peek-own";
+      const known = own ? state.aiKnown : state.aiKnowsPlayer;
+      const i = randomFrom(indices(own ? state.ai : state.player).filter((j) => !known.has(j)));
+      if (finalTurn() || i === null) return pass(); // no turns left to use what it would learn
+      known.add(i);
+      record("computer", own ? `Peeked at its ${spot("ai", i)} card.` : `Peeked at your ${spot("player", i)} card.`);
+      await peekStep(`${own ? "ai" : "player"}:${i}`, own ? "Computer peeks at one of its cards." : "Computer peeks at one of your cards.");
+      return;
+    }
+
+    const worst = worstAiSlot();
+    if (!worst) return pass();
+
+    if (power === "check-swap") {
+      // Look at one of your cards it hasn't seen (or your best known one), then swap only if it's better.
+      const unseen = indices(state.player).filter((j) => !state.aiKnowsPlayer.has(j));
+      const opp = unseen.length ? randomFrom(unseen) : lowestKnownPlayerIndex();
+      if (opp === null) return pass();
+      state.aiKnowsPlayer.add(opp);
+      record("computer", `Checked your ${spot("player", opp)} card.`);
+      await peekStep(`player:${opp}`, "Computer checks one of your cards…");
+      if (worst.value - score(state.player[opp]) > (finalTurn() ? 0 : 1)) {
+        record("computer", `Swapped it with its ${spot("ai", worst.index)} card.`);
+        aiSwap(worst.index, opp, true);
+        await step("…and swaps it for one of its own.", 1000);
+      } else {
+        record("computer", "Left it.");
+        await step("…and leaves it.", 800);
+      }
+      return;
+    }
+
+    // Jack or queen: trade its weakest card for your best card it knows about, or, when its
+    // weakest card is bad enough, gamble on one of yours it hasn't seen.
+    let opp = lowestKnownPlayerIndex();
+    if (opp === null || worst.value - score(state.player[opp]) < 2) {
+      const unseen = indices(state.player).filter((j) => !state.aiKnowsPlayer.has(j));
+      opp = worst.known && worst.value - unseenAverage() >= 3 ? randomFrom(unseen) : null;
+    }
+    if (opp === null) return pass();
+
+    if (power === "blind-swap") {
+      record("computer", `Blind-swapped its ${spot("ai", worst.index)} card with your ${spot("player", opp)} card.`);
+      aiSwap(worst.index, opp, false);
+      await step("Computer swaps one of its cards with one of yours, blind.", 1000);
+    } else {
+      record("computer", `Swapped its ${spot("ai", worst.index)} card with your ${spot("player", opp)} card and looked at it.`);
+      aiSwap(worst.index, opp, true);
+      await step("Computer swaps a card with one of yours…", 900);
+      await peekStep(`ai:${worst.index}`, "…and checks what it got.");
+    }
+  }
+
+  // --- Easy: the original computer --------------------------------------------
+
+  async function aiUsePowerEasy(power) {
     if (power === "peek-own") {
       const unknown = indices(state.ai).filter(i => !state.aiKnown.has(i));
       const i = randomFrom(unknown.length ? unknown : indices(state.ai));
@@ -893,13 +1095,16 @@
   }
 
   function aiSwap(aiIndex, playerIndex, knowsReceived) {
+    const knewOwn = state.aiKnown.has(aiIndex);
+    const knewYours = state.aiKnowsPlayer.has(playerIndex);
     const temp = state.ai[aiIndex];
     state.ai[aiIndex] = state.player[playerIndex];
     state.player[playerIndex] = temp;
     state.aiKnown.delete(aiIndex);
     state.playerKnown.delete(playerIndex);
     state.aiKnowsPlayer.delete(playerIndex);
-    if (knowsReceived) state.aiKnown.add(aiIndex);
+    if (knowsReceived || (tracks() && knewYours)) state.aiKnown.add(aiIndex);
+    if (tracks() && knewOwn) state.aiKnowsPlayer.add(playerIndex);
   }
 
   function choosePlayerCardForAiSwap() {
@@ -932,6 +1137,7 @@
   }
 
   function shouldAiCallCabo() {
+    if (smart()) return smartShouldCallCabo();
     if (state.aiTurnCount < 4) return false;
     const estimate = estimateAiScore();
     if (estimate <= 7) return true;
@@ -951,7 +1157,7 @@
     const a = state.ai.reduce((sum, c) => sum + score(c), 0);
     els.playerScore.textContent = String(p);
     els.aiScore.textContent = String(a);
-    els.resultEyebrow.textContent = state.caboCaller === "player" ? "you called cabo" : "computer called cabo";
+    els.resultEyebrow.textContent = `${state.caboCaller === "player" ? "you called cabo" : "computer called cabo"} · ${state.level}`;
     els.resultTitle.textContent = p < a ? "you win" : p > a ? "computer wins" : "tie game";
     record("round", `Final scores: you ${p}, computer ${a}.`);
     renderHistory();
@@ -1015,7 +1221,29 @@
   els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
   els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   els.playAgainBtn.addEventListener("click", () => { els.resultDialog.close(); startGame(); });
-  els.newGameBtn.addEventListener("click", () => { if (els.resultDialog.open) els.resultDialog.close(); startGame(); });
+  // New game asks for a level first; "play again" keeps the current one.
+  function openNewGame() {
+    if (els.resultDialog.open) els.resultDialog.close();
+    for (const option of els.levelOptions) option.setAttribute("aria-pressed", String(option.dataset.level === level));
+    els.newGameDialog.showModal();
+  }
+
+  for (const option of els.levelOptions) {
+    option.addEventListener("click", () => {
+      for (const other of els.levelOptions) other.setAttribute("aria-pressed", String(other === option));
+    });
+  }
+
+  els.dealBtn.addEventListener("click", () => {
+    const chosen = [...els.levelOptions].find((option) => option.getAttribute("aria-pressed") === "true");
+    if (chosen) level = chosen.dataset.level;
+    try { localStorage.setItem("level", level); } catch {}
+    els.newGameDialog.close();
+    startGame();
+  });
+  els.closeNewGameBtn.addEventListener("click", () => els.newGameDialog.close());
+  els.changeLevelBtn.addEventListener("click", openNewGame);
+  els.newGameBtn.addEventListener("click", openNewGame);
 
   startGame();
 })();

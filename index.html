@@ -80,6 +80,31 @@
     </div>
   </dialog>
 
+  <dialog id="newGameDialog" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>new game</h2>
+        <button id="closeNewGameBtn" class="icon-button" type="button" aria-label="Close">×</button>
+      </div>
+      <p class="small">How good should the computer be?</p>
+      <div class="level-options">
+        <button class="level-option" type="button" data-level="easy" aria-pressed="false">
+          <strong>easy</strong>
+          <span>Forgets cards once they move and only swaps in cards it's sure about.</span>
+        </button>
+        <button class="level-option" type="button" data-level="medium" aria-pressed="false">
+          <strong>medium</strong>
+          <span>Swaps out its weakest cards, even unseen ones, and only uses powers when they help.</span>
+        </button>
+        <button class="level-option" type="button" data-level="hard" aria-pressed="false">
+          <strong>hard</strong>
+          <span>Also follows cards as they move, counts cards, and waits for the right moment to call Cabo.</span>
+        </button>
+      </div>
+      <button id="dealBtn" class="primary-button full" type="button">deal</button>
+    </div>
+  </dialog>
+
   <dialog id="resultDialog" class="modal result-modal">
     <div class="modal-content result-content">
       <div id="resultEyebrow" class="muted">round over</div>
@@ -89,6 +114,7 @@
         <div><span>computer</span><strong id="aiScore">0</strong></div>
       </div>
       <button id="playAgainBtn" class="primary-button full" type="button">play again</button>
+      <button id="changeLevelBtn" class="secondary-button full" type="button">change level</button>
     </div>
   </dialog>
 

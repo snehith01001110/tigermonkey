@@ -445,7 +445,27 @@ button { color: inherit; touch-action: manipulation; }
 .rules-grid span { color: var(--muted); }
 .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
 
+.level-options { display: grid; gap: 8px; margin: 16px 0 20px; }
+.level-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.level-option span { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.level-option[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+@media (hover: hover) {
+  .level-option:hover { border-color: var(--ink); }
+}
+
 .result-content { text-align: center; }
+.result-content .secondary-button { margin-top: 8px; }
 .result-content h2 { margin-top: 4px; font-size: 36px; }
 .score-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 28px 0; }
 .score-row > div { border: 1px solid var(--line); border-radius: 13px; padding: 18px; display: flex; flex-direction: column; gap: 4px; }
