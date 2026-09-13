@@ -13,6 +13,13 @@
     turnLabel: document.getElementById("turnLabel"),
     message: document.getElementById("message"),
     actions: document.getElementById("actions"),
+    historyList: document.getElementById("historyList"),
+    historyListModal: document.getElementById("historyListModal"),
+    historyBtn: document.getElementById("historyBtn"),
+    historyDialog: document.getElementById("historyDialog"),
+    closeHistoryBtn: document.getElementById("closeHistoryBtn"),
+    themeBtn: document.getElementById("themeBtn"),
+    themeColor: document.querySelector('meta[name="theme-color"]'),
     rulesBtn: document.getElementById("rulesBtn"),
     closeRulesBtn: document.getElementById("closeRulesBtn"),
     rulesDialog: document.getElementById("rulesDialog"),
@@ -26,6 +33,8 @@
   };
 
   let state;
+  let shownHistory = null;
+  let shownCount = 0;
 
   const MOVE_MS = 460;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -36,6 +45,7 @@
     "swap-check": "swap, then check",
     "check-swap": "check, then swap",
   };
+  const WHO_LABELS = { you: "you", computer: "computer", round: "round" };
 
   function freshState() {
     const deck = shuffle(makeDeck());
@@ -67,7 +77,7 @@
       caboCaller: null,
       finalTurnOwner: null,
       gameOver: false,
-      log: [],
+      history: [],
     };
   }
 
@@ -152,6 +162,7 @@
     renderHands();
     renderCenter();
     renderDock();
+    renderHistory();
     animateCards(before);
   }
 
@@ -328,7 +339,7 @@
       case "match-mode":
         return [["cancel", cancelMatch]];
       case "king-swap-choice":
-        return [["keep hands", finishPowerTurn], ["swap", executeKingSwap, true]];
+        return [["keep hands", keepHands], ["swap", executeKingSwap, true]];
       default:
         return state.phase.startsWith("power-") && state.phase !== "power-resolving" ? [["skip", skipPower]] : [];
     }
@@ -336,6 +347,70 @@
 
   function say(text) {
     els.message.textContent = text;
+  }
+
+  // History keeps only what both players saw, so it never gives away a hidden card.
+  // Parts are strings or cards; cards are shown by name.
+  function record(who, ...parts) {
+    state.history.push({ who, parts });
+  }
+
+  // Newest turn first; consecutive moves by the same player share one heading.
+  function renderHistory() {
+    if (shownHistory === state.history && shownCount === state.history.length) return;
+    const firstNew = shownHistory === state.history ? shownCount : state.history.length;
+    shownHistory = state.history;
+    shownCount = state.history.length;
+
+    const groups = [];
+    state.history.forEach((entry, i) => {
+      const last = groups[groups.length - 1];
+      if (last && last.who === entry.who) last.lines.push({ entry, i });
+      else groups.push({ who: entry.who, lines: [{ entry, i }] });
+    });
+
+    for (const list of [els.historyList, els.historyListModal]) {
+      list.innerHTML = "";
+      for (const group of groups.slice(-8).reverse()) {
+        const item = document.createElement("li");
+        item.className = "history-group";
+        const who = document.createElement("span");
+        who.className = "history-who";
+        who.textContent = WHO_LABELS[group.who];
+        item.appendChild(who);
+        for (const { entry, i } of group.lines) {
+          const line = document.createElement("span");
+          line.className = i >= firstNew ? "history-line fresh" : "history-line";
+          for (const part of entry.parts) line.appendChild(historyPart(part));
+          item.appendChild(line);
+        }
+        list.appendChild(item);
+      }
+    }
+  }
+
+  function historyPart(part) {
+    if (typeof part === "string") return document.createTextNode(part);
+    const name = document.createElement("span");
+    name.className = part.suit === "♥" || part.suit === "♦" ? "history-card red" : "history-card";
+    name.textContent = pretty(part);
+    return name;
+  }
+
+  // Where a card sits as you see it, e.g. "top-left". The computer's grid is rotated.
+  function spot(owner, index) {
+    const count = (owner === "player" ? state.player : state.ai).length;
+    const rows = Math.ceil(count / 2);
+    let row = Math.floor(index / 2);
+    let col = index % 2;
+    if (owner === "ai") {
+      row = rows - 1 - row;
+      col = 1 - col;
+    }
+    const side = col ? "right" : "left";
+    const rowName = rows === 1 ? "" : row === 0 ? "top" : row === rows - 1 ? "bottom" : "middle";
+    if (count % 2 === 1 && index === count - 1) return rowName || "only";
+    return rowName ? `${rowName}-${side}` : side;
   }
 
   function canSelectCard(owner, index) {
@@ -382,6 +457,7 @@
   function startGame() {
     if (els.resultDialog.open) els.resultDialog.close();
     state = freshState();
+    record("round", "Cards dealt.");
     // Clear the old table so the new hands are dealt from the deck, not slid over.
     for (const el of [els.aiHand, els.playerHand, els.held, els.discard]) el.innerHTML = "";
     say("Dealing…");
@@ -408,6 +484,7 @@
     state.drawn = state.deck.pop();
     state.drawnSource = "deck";
     state.phase = "drawn";
+    record("you", "Drew from the deck.");
     say(`You drew ${pretty(state.drawn)}. Tap one of your cards to swap it in, or discard it${powerFor(state.drawn) ? " to use its power" : ""}.`);
     render();
   }
@@ -418,6 +495,7 @@
     state.drawn = state.discard.pop();
     state.drawnSource = "discard";
     state.phase = "choose-replace";
+    record("you", "Took ", state.drawn, " from the discard.");
     say(`You took ${pretty(state.drawn)}. Tap one of your cards to swap it in.`);
     render();
   }
@@ -429,6 +507,7 @@
     state.playerKnown.add(index);
     state.drawn = null;
     state.drawnSource = null;
+    record("you", `Put it in your ${spot("player", index)} spot, discarding `, old, ".");
     say(`You replaced a card and discarded ${pretty(old)}.`);
     endPlayerTurn();
   }
@@ -437,6 +516,7 @@
     if (!state.drawn || state.drawnSource !== "deck") return;
     const card = state.drawn;
     state.discard.push(card);
+    record("you", "Discarded ", card, ".");
     state.drawn = null;
     state.drawnSource = null;
     const power = powerFor(card);
@@ -485,6 +565,7 @@
   function playerPeekOwn(index) {
     state.phase = "power-resolving";
     state.playerKnown.add(index);
+    record("you", `Peeked at your ${spot("player", index)} card.`);
     say(`Remember ${pretty(state.player[index])}.`);
     temporaryReveal(state.temporaryPlayerReveal, index, 2000);
     later(finishPowerTurn, 2000 + MOVE_MS + 40);
@@ -492,12 +573,14 @@
 
   function playerPeekOpponent(index) {
     state.phase = "power-resolving";
+    record("you", `Peeked at the computer's ${spot("ai", index)} card.`);
     say(`Remember their ${pretty(state.ai[index])}.`);
     temporaryReveal(state.temporaryAiReveal, index, 2000);
     later(finishPowerTurn, 2000 + MOVE_MS + 40);
   }
 
   function playerBlindSwap(aiIndex) {
+    record("you", `Blind-swapped your ${spot("player", state.selectedOwn)} card with its ${spot("ai", aiIndex)} card.`);
     swapCards(state.selectedOwn, aiIndex);
     say("Blind swap complete.");
     finishPowerTurn();
@@ -505,6 +588,7 @@
 
   function playerSwapCheck(aiIndex) {
     const ownIndex = state.selectedOwn;
+    record("you", `Swapped your ${spot("player", ownIndex)} card with its ${spot("ai", aiIndex)} card and looked at it.`);
     swapCards(ownIndex, aiIndex);
     state.playerKnown.add(ownIndex);
     state.phase = "power-resolving";
@@ -520,6 +604,7 @@
 
   function playerKingCheck(aiIndex) {
     state.selectedOpp = aiIndex;
+    record("you", `Checked the computer's ${spot("ai", aiIndex)} card.`);
     temporaryReveal(state.temporaryAiReveal, aiIndex, 1600);
     state.phase = "power-k-own";
     say(`That's ${pretty(state.ai[aiIndex])}. Now choose one of yours, then decide whether to swap.`);
@@ -528,9 +613,15 @@
 
   function executeKingSwap() {
     if (state.selectedOwn === null || state.selectedOpp === null) return;
+    record("you", `Swapped it with your ${spot("player", state.selectedOwn)} card.`);
     swapCards(state.selectedOwn, state.selectedOpp);
     state.playerKnown.add(state.selectedOwn);
     say("Swap complete.");
+    finishPowerTurn();
+  }
+
+  function keepHands() {
+    record("you", "Kept both hands.");
     finishPowerTurn();
   }
 
@@ -567,6 +658,7 @@
   }
 
   function skipPower() {
+    record("you", "Skipped the power.");
     say("You skipped the power.");
     finishPowerTurn();
   }
@@ -574,13 +666,16 @@
   function tryPlayerMatch(index) {
     const top = state.discard[state.discard.length - 1];
     const card = state.player[index];
+    const where = spot("player", index);
     if (sameRank(card, top)) {
+      record("you", `Matched the discard with your ${where} card, `, card, ".");
       state.discard.push(card);
       state.player.splice(index, 1);
       remapKnowledgeAfterRemoval(state.playerKnown, index);
       remapKnowledgeAfterRemoval(state.aiKnowsPlayer, index);
       say(`Correct — ${pretty(card)} is gone. Now take your turn.`);
     } else {
+      record("you", `Tried to match with your ${where} card, `, card, ". Wrong, so took a penalty card.");
       refillDeckIfNeeded();
       state.player.push(state.deck.pop());
       say(`Wrong match. ${pretty(card)} doesn't match ${pretty(top)} — penalty card added.`);
@@ -603,6 +698,7 @@
     if (state.turn !== "player" || state.phase !== "await-draw" || state.caboCaller) return;
     state.caboCaller = "player";
     state.finalTurnOwner = "ai";
+    record("you", "Called Cabo.");
     say("Cabo. Your hand is locked; the computer gets one last turn.");
     state.turn = "ai";
     state.phase = "ai-turn";
@@ -631,6 +727,7 @@
     if (!state.caboCaller && shouldAiCallCabo()) {
       state.caboCaller = "ai";
       state.finalTurnOwner = "player";
+      record("computer", "Called Cabo.");
       await step("The computer calls Cabo. You get one final turn.", 1000);
       state.turn = "player";
       state.phase = "await-draw";
@@ -642,6 +739,7 @@
     const matchIndex = [...state.aiKnown].find(i => state.ai[i] && sameRank(state.ai[i], top));
     if (matchIndex !== undefined) {
       const matched = state.ai[matchIndex];
+      record("computer", `Matched the discard with its ${spot("ai", matchIndex)} card, `, matched, ".");
       state.discard.push(matched);
       state.ai.splice(matchIndex, 1);
       remapKnowledgeAfterRemoval(state.aiKnown, matchIndex);
@@ -655,6 +753,7 @@
     if (takeDiscard) {
       state.aiDrawn = state.discard.pop();
       state.aiDrawnShown = true;
+      record("computer", "Took ", state.aiDrawn, " from the discard.");
       await step(`Computer takes the ${pretty(state.aiDrawn)}.`, 800);
       aiKeepDrawn(knownHighest);
       await step("Computer swapped it into its hand.", 900);
@@ -662,6 +761,7 @@
       refillDeckIfNeeded();
       state.aiDrawn = state.deck.pop();
       state.aiDrawnShown = false;
+      record("computer", "Drew from the deck.");
       await step("Computer draws from the deck.", 900);
       await aiUseDrawnCard(state.aiDrawn);
     }
@@ -692,6 +792,7 @@
     }
 
     state.discard.push(card);
+    record("computer", "Discarded ", card, ".");
     state.aiDrawn = null;
     if (!power) {
       await step(`Computer discarded the ${pretty(card)}.`, 900);
@@ -720,6 +821,7 @@
 
   function aiKeepDrawn(index) {
     const old = state.ai[index];
+    record("computer", `Put it in its ${spot("ai", index)} spot, discarding `, old, ".");
     state.ai[index] = state.aiDrawn;
     state.aiKnown.add(index);
     state.discard.push(old);
@@ -730,7 +832,10 @@
     if (power === "peek-own") {
       const unknown = indices(state.ai).filter(i => !state.aiKnown.has(i));
       const i = randomFrom(unknown.length ? unknown : indices(state.ai));
-      if (i !== null) state.aiKnown.add(i);
+      if (i !== null) {
+        state.aiKnown.add(i);
+        record("computer", `Peeked at its ${spot("ai", i)} card.`);
+      }
       await peekStep(`ai:${i}`, "Computer peeks at one of its cards.");
       return;
     }
@@ -738,7 +843,10 @@
     if (power === "peek-opponent") {
       const unknown = indices(state.player).filter(i => !state.aiKnowsPlayer.has(i));
       const i = randomFrom(unknown.length ? unknown : indices(state.player));
-      if (i !== null) state.aiKnowsPlayer.add(i);
+      if (i !== null) {
+        state.aiKnowsPlayer.add(i);
+        record("computer", `Peeked at your ${spot("player", i)} card.`);
+      }
       await peekStep(`player:${i}`, "Computer peeks at one of your cards.");
       return;
     }
@@ -746,7 +854,10 @@
     if (power === "blind-swap") {
       const own = highestKnownIndex(state.ai, state.aiKnown) ?? randomFrom(indices(state.ai));
       const opp = randomFrom(indices(state.player));
-      if (own !== null && opp !== null) aiSwap(own, opp, false);
+      if (own !== null && opp !== null) {
+        record("computer", `Blind-swapped its ${spot("ai", own)} card with your ${spot("player", opp)} card.`);
+        aiSwap(own, opp, false);
+      }
       await step("Computer swaps one of its cards with one of yours, blind.", 1000);
       return;
     }
@@ -755,6 +866,7 @@
       const own = highestKnownIndex(state.ai, state.aiKnown) ?? randomFrom(indices(state.ai));
       const opp = choosePlayerCardForAiSwap();
       if (own !== null && opp !== null) {
+        record("computer", `Swapped its ${spot("ai", own)} card with your ${spot("player", opp)} card and looked at it.`);
         aiSwap(own, opp, true);
         await step("Computer swaps a card with one of yours…", 900);
         await peekStep(`ai:${own}`, "…and checks what it got.");
@@ -766,12 +878,15 @@
       const opp = choosePlayerCardToInspect();
       if (opp === null) return;
       state.aiKnowsPlayer.add(opp);
+      record("computer", `Checked your ${spot("player", opp)} card.`);
       await peekStep(`player:${opp}`, "Computer checks one of your cards…");
       const own = highestKnownIndex(state.ai, state.aiKnown);
       if (own !== null && score(state.player[opp]) < score(state.ai[own])) {
+        record("computer", `Swapped it with its ${spot("ai", own)} card.`);
         aiSwap(own, opp, true);
         await step("…and swaps it for one of its own.", 1000);
       } else {
+        record("computer", "Left it.");
         await step("…and leaves it.", 800);
       }
     }
@@ -838,6 +953,8 @@
     els.aiScore.textContent = String(a);
     els.resultEyebrow.textContent = state.caboCaller === "player" ? "you called cabo" : "computer called cabo";
     els.resultTitle.textContent = p < a ? "you win" : p > a ? "computer wins" : "tie game";
+    record("round", `Final scores: you ${p}, computer ${a}.`);
+    renderHistory();
     later(() => els.resultDialog.showModal(), 1200);
   }
 
@@ -866,10 +983,37 @@
     return new Promise(resolve => later(resolve, ms));
   }
 
+  // Dark mode follows the system until the toggle picks a side; the choice is remembered.
+  const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  function currentTheme() {
+    return document.documentElement.dataset.theme || (darkQuery.matches ? "dark" : "light");
+  }
+
+  function updateThemeControls() {
+    const dark = currentTheme() === "dark";
+    els.themeBtn.textContent = dark ? "light" : "dark";
+    els.themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    els.themeColor.content = dark ? "#161614" : "#f4f0e7";
+  }
+
+  function toggleTheme() {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch {}
+    updateThemeControls();
+  }
+
+  els.themeBtn.addEventListener("click", toggleTheme);
+  darkQuery.addEventListener("change", updateThemeControls);
+  updateThemeControls();
+
   els.deck.addEventListener("click", drawFromDeck);
   els.discard.addEventListener("click", drawFromDiscard);
   els.rulesBtn.addEventListener("click", () => els.rulesDialog.showModal());
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
+  els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
+  els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   els.playAgainBtn.addEventListener("click", () => { els.resultDialog.close(); startGame(); });
   els.newGameBtn.addEventListener("click", () => { if (els.resultDialog.open) els.resultDialog.close(); startGame(); });
 

@@ -4,22 +4,61 @@
   --muted: #77736a;
   --line: rgba(23, 23, 20, 0.14);
   --paper: #fffdf8;
+  --card-paper: #fffdf8;
+  --card-ink: #171714;
   --back: #f4f3ef url("assets/card-back.png") center / cover no-repeat;
   --edge: #e8e4da;
   --accent: #171714;
   --red: #bc3b31;
+  --red-text: #bc3b31;
   --shadow: 0 10px 24px rgba(25, 22, 16, 0.10);
   --ring: 1.5px solid rgba(23, 23, 20, 0.28);
+  color-scheme: light;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   /* Cards scale with the viewport height so the whole table fits without scrolling. */
-  --card-h: clamp(84px, calc((100vh - 290px) / 5.4), 124px);
+  --card-h: clamp(72px, calc((100vh - 290px) / 5.4), 124px);
   --card-w: calc(var(--card-h) * 0.71);
   --radius: calc(var(--card-h) * 0.08);
   --gap: calc(var(--card-h) * 0.1);
 }
 
 @supports (height: 100dvh) {
-  :root { --card-h: clamp(84px, calc((100dvh - 290px) / 5.4), 124px); }
+  :root { --card-h: clamp(72px, calc((100dvh - 290px) / 5.4), 124px); }
+}
+
+/* Dark theme: follows the system unless the toggle picked a side. Cards stay paper-colored. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161614;
+    --ink: #ebe7de;
+    --muted: #8f8a80;
+    --line: rgba(235, 231, 222, 0.14);
+    --paper: #201f1c;
+    --card-paper: #ebe7de;
+    --back: linear-gradient(rgba(22, 22, 20, 0.12), rgba(22, 22, 20, 0.12)), #e4e1da url("assets/card-back.png") center / cover no-repeat;
+    --edge: #cdc8bd;
+    --accent: #ebe7de;
+    --red-text: #e36b5f;
+    --shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    --ring: 1.5px solid rgba(235, 231, 222, 0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161614;
+  --ink: #ebe7de;
+  --muted: #8f8a80;
+  --line: rgba(235, 231, 222, 0.14);
+  --paper: #201f1c;
+  --card-paper: #ebe7de;
+  --back: linear-gradient(rgba(22, 22, 20, 0.12), rgba(22, 22, 20, 0.12)), #e4e1da url("assets/card-back.png") center / cover no-repeat;
+  --edge: #cdc8bd;
+  --accent: #ebe7de;
+  --red-text: #e36b5f;
+  --shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  --ring: 1.5px solid rgba(235, 231, 222, 0.35);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -35,7 +74,7 @@ body {
 }
 
 button, a { font: inherit; }
-button { color: inherit; }
+button { color: inherit; touch-action: manipulation; }
 
 .app {
   width: min(1080px, 100%);
@@ -72,6 +111,73 @@ button { color: inherit; }
   color: var(--muted);
 }
 .text-button:hover, .icon-button:hover { color: var(--ink); }
+
+/* Play area: history on the left, the table centered, an empty column balancing it. */
+.play {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 200px;
+  gap: 24px;
+}
+.play::after { content: ""; }
+
+/* As tall as the table's cards; older turns fade out at the bottom. */
+.history {
+  align-self: center;
+  height: calc(var(--card-h) * 5.76 + 22px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
+}
+.history::-webkit-scrollbar { display: none; }
+
+.history-title,
+.history-who {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.history-title { margin: 0 0 14px; }
+.history-who { font-size: 10px; }
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal .history-list { max-height: 60vh; margin-top: 18px; overflow-y: auto; }
+
+.history-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.history-group:first-child { color: var(--ink); }
+.history-card { font-weight: 600; color: var(--ink); }
+.history-card.red { color: var(--red-text); }
+.history-line.fresh { animation: history-in 320ms var(--ease); }
+@keyframes history-in { from { opacity: 0; transform: translateY(-4px); } }
+
+.history-toggle { display: none; }
+
+@media (max-width: 860px) {
+  .play { grid-template-columns: minmax(0, 1fr); }
+  .play::after, .history { display: none; }
+  .history-toggle { display: inline-block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-line.fresh { animation: none; }
+}
 
 /* Table: only cards live here. */
 .table {
@@ -151,13 +257,18 @@ button { color: inherit; }
 .deck-layer:first-child { box-shadow: var(--shadow); }
 .deck-layer:last-child { background: var(--back); }
 .deck.ready .deck-layer:last-child { outline: var(--ring); outline-offset: 3px; }
-.deck.ready:hover .deck-layer:last-child { transform: translateY(calc(var(--i) * -2px - 5px)); }
+/* Hover lifts only where there's a real pointer; on touch they'd stick after a tap. */
+@media (hover: hover) {
+  .deck.ready:hover .deck-layer:last-child { transform: translateY(calc(var(--i) * -2px - 5px)); }
+}
 
 .discard-pile .card { position: absolute; inset: 0; pointer-events: none; }
 .discard-pile.empty { border: 1px dashed var(--line); }
 .discard-pile.ready { cursor: pointer; }
 .discard-pile.ready .card:last-of-type { outline: var(--ring); outline-offset: 3px; }
-.discard-pile.ready:hover .card:last-of-type { transform: translateY(-5px); }
+@media (hover: hover) {
+  .discard-pile.ready:hover .card:last-of-type { transform: translateY(-5px); }
+}
 
 /* Cards are two faces on a hinge; .face-up turns the hinge. */
 .card {
@@ -175,7 +286,9 @@ button { color: inherit; }
 }
 .card:disabled { cursor: default; }
 .card.selectable { cursor: pointer; outline: var(--ring); outline-offset: 3px; }
-.card.selectable:hover { transform: translateY(-5px); }
+@media (hover: hover) {
+  .card.selectable:hover { transform: translateY(-5px); }
+}
 .card.selected { transform: translateY(-8px); outline: 2px solid var(--ink); outline-offset: 3px; }
 .card.lifted { transform: translateY(-14px); }
 
@@ -201,7 +314,8 @@ button { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--paper);
+  background: var(--card-paper);
+  color: var(--card-ink);
   transform: rotateY(180deg);
 }
 
@@ -302,7 +416,7 @@ button { color: inherit; }
 .primary-button {
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--bg);
 }
 .primary-button:hover { opacity: .88; }
 
@@ -341,6 +455,8 @@ button { color: inherit; }
 
 @media (max-width: 620px) {
   .app { padding: 16px 16px 0; }
+  .top-actions { gap: 14px; }
+  .text-button { padding-block: 10px; }
   .dock {
     flex-direction: column;
     align-items: stretch;

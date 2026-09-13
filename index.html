@@ -6,31 +6,41 @@
   <meta name="theme-color" content="#f4f0e7" />
   <title>TigerMonkey — Cabo</title>
   <link rel="stylesheet" href="styles.css" />
+  <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
   <main class="app">
     <header class="topbar">
       <a class="brand" href="/" aria-label="TigerMonkey home">tigermonkey</a>
       <div class="top-actions">
+        <button id="historyBtn" class="text-button history-toggle" type="button">history</button>
+        <button id="themeBtn" class="text-button" type="button">dark</button>
         <button id="rulesBtn" class="text-button" type="button">rules</button>
         <button id="newGameBtn" class="text-button" type="button">new game</button>
       </div>
     </header>
 
-    <section class="table" aria-label="Cabo table">
-      <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
+    <div class="play">
+      <aside class="history" aria-label="Game history">
+        <h2 class="history-title">history</h2>
+        <ol id="historyList" class="history-list"></ol>
+      </aside>
 
-      <div class="table-center">
-        <button id="deck" class="deck" type="button" aria-label="Draw from deck">
-          <span id="deckStack" class="deck-stack"></span>
-          <span id="deckCount" class="pile-label">deck</span>
-        </button>
-        <div id="held" class="slot" aria-label="Drawn card"></div>
-        <div id="discard" class="slot discard-pile" aria-label="Discard pile"></div>
-      </div>
+      <section class="table" aria-label="Cabo table">
+        <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
 
-      <div id="playerHand" class="hand" aria-label="Your cards"></div>
-    </section>
+        <div class="table-center">
+          <button id="deck" class="deck" type="button" aria-label="Draw from deck">
+            <span id="deckStack" class="deck-stack"></span>
+            <span id="deckCount" class="pile-label">deck</span>
+          </button>
+          <div id="held" class="slot" aria-label="Drawn card"></div>
+          <div id="discard" class="slot discard-pile" aria-label="Discard pile"></div>
+        </div>
+
+        <div id="playerHand" class="hand" aria-label="Your cards"></div>
+      </section>
+    </div>
 
     <footer class="dock">
       <div class="status" aria-live="polite">
@@ -57,6 +67,16 @@
       </div>
       <p class="small">Powers only trigger when the card is drawn from the deck and discarded. Red kings are −1. Jokers are 0. If you think one of your face-down cards matches the top discard, use <em>match discard</em>. A wrong match adds a penalty card.</p>
       <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed.</p>
+    </div>
+  </dialog>
+
+  <dialog id="historyDialog" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>history</h2>
+        <button id="closeHistoryBtn" class="icon-button" type="button" aria-label="Close history">×</button>
+      </div>
+      <ol id="historyListModal" class="history-list"></ol>
     </div>
   </dialog>
 
