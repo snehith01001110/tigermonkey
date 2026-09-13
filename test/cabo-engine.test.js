@@ -6,6 +6,7 @@ import {
   addPlayer,
   applyAction,
   createGame,
+  scoreCard,
   viewForPlayer,
 } from "../src/shared/games/cabo.js";
 
@@ -188,22 +189,73 @@ test("a King can inspect and then keep or swap", () => {
   assert.equal(game.currentPlayerId, "p2");
 });
 
-test("matching removes a correct card and penalizes a wrong card", () => {
-  const correct = readyGame();
-  const matchingCard = correct.game.hands.p1[0];
-  correct.game.discard = [{ id: "matching-top", rank: matchingCard.rank, suit: "♠" }];
-  applyAction(correct.game, "p1", { type: "MATCH_START" }, correct.tools);
-  applyAction(correct.game, "p1", { type: "MATCH", index: 0 }, correct.tools);
-  assert.equal(correct.game.hands.p1.length, 3);
-  assert.equal(correct.game.phase, "await-draw");
+test("matching empties a spot without moving the rest of the hand", () => {
+  const { game, tools } = readyGame();
+  const matchingCard = game.hands.p1[1];
+  const others = [game.hands.p1[0], game.hands.p1[2], game.hands.p1[3]].map((card) => card.id);
+  game.discard = [{ id: "matching-top", rank: matchingCard.rank, suit: "♠" }];
+  applyAction(game, "p1", { type: "MATCH_START" }, tools);
+  applyAction(game, "p1", { type: "MATCH", index: 1 }, tools);
 
-  const wrong = readyGame();
-  const wrongRank = wrong.game.hands.p1[0].rank === "A" ? "2" : "A";
-  wrong.game.discard = [{ id: "different-top", rank: wrongRank, suit: "♥" }];
-  applyAction(wrong.game, "p1", { type: "MATCH_START" }, wrong.tools);
-  applyAction(wrong.game, "p1", { type: "MATCH", index: 0 }, wrong.tools);
-  assert.equal(wrong.game.hands.p1.length, 5);
-  assert.equal(wrong.game.currentPlayerId, "p1");
+  assert.equal(game.hands.p1.length, 4);
+  assert.equal(game.hands.p1[1], null);
+  assert.deepEqual([game.hands.p1[0], game.hands.p1[2], game.hands.p1[3]].map((card) => card.id), others);
+  assert.equal(game.phase, "await-draw");
+
+  const hand = viewForPlayer(game, "p1").players.find((player) => player.id === "p1").hand;
+  assert.equal(hand.length, 4);
+  assert.equal(hand[1], null);
+});
+
+test("an emptied spot cannot be played and is not scored", () => {
+  const { game, tools } = readyGame();
+  const matchingCard = game.hands.p1[0];
+  game.discard = [{ id: "matching-top", rank: matchingCard.rank, suit: "♠" }];
+  applyAction(game, "p1", { type: "MATCH_START" }, tools);
+  applyAction(game, "p1", { type: "MATCH", index: 0 }, tools);
+
+  applyAction(game, "p1", { type: "DRAW_DECK" }, tools);
+  assert.throws(
+    () => applyAction(game, "p1", { type: "REPLACE", index: 0 }, tools),
+    (error) => error instanceof GameRuleError,
+  );
+
+  applyAction(game, "p1", { type: "REPLACE", index: 1 }, tools);
+  applyAction(game, "p2", { type: "CALL_CABO" }, tools);
+  applyAction(game, "p1", { type: "DRAW_DECK" }, tools);
+  applyAction(game, "p1", { type: "REPLACE", index: 1 }, tools);
+
+  assert.equal(game.status, "finished");
+  const expected = game.hands.p1.reduce((total, card) => total + (card ? scoreCard(card) : 0), 0);
+  assert.equal(game.scores.p1, expected);
+});
+
+test("a penalty card fills an empty spot before the hand grows", () => {
+  const { game, tools } = readyGame();
+  const matchingCard = game.hands.p1[2];
+  game.discard = [{ id: "matching-top", rank: matchingCard.rank, suit: "♠" }];
+  applyAction(game, "p1", { type: "MATCH_START" }, tools);
+  applyAction(game, "p1", { type: "MATCH", index: 2 }, tools);
+
+  const kept = [game.hands.p1[0], game.hands.p1[1], game.hands.p1[3]].map((card) => card.id);
+  const wrongRank = game.hands.p1[0].rank === "A" ? "2" : "A";
+  game.discard = [{ id: "different-top", rank: wrongRank, suit: "♥" }];
+  applyAction(game, "p1", { type: "MATCH_START" }, tools);
+  applyAction(game, "p1", { type: "MATCH", index: 0 }, tools);
+
+  assert.equal(game.hands.p1.length, 4);
+  assert.ok(game.hands.p1[2]);
+  assert.deepEqual([game.hands.p1[0], game.hands.p1[1], game.hands.p1[3]].map((card) => card.id), kept);
+});
+
+test("a wrong match with no empty spot grows the hand", () => {
+  const { game, tools } = readyGame();
+  const wrongRank = game.hands.p1[0].rank === "A" ? "2" : "A";
+  game.discard = [{ id: "different-top", rank: wrongRank, suit: "♥" }];
+  applyAction(game, "p1", { type: "MATCH_START" }, tools);
+  applyAction(game, "p1", { type: "MATCH", index: 0 }, tools);
+  assert.equal(game.hands.p1.length, 5);
+  assert.equal(game.currentPlayerId, "p1");
 });
 
 test("power cards can be skipped without leaving stale private state", () => {

@@ -220,6 +220,10 @@ function renderHands() {
 function renderHand(container, hand, owner) {
   container.innerHTML = "";
   hand.forEach((card, index) => {
+    if (!card) {
+      container.appendChild(emptySlot());
+      return;
+    }
     const selectable = canSelectCard(owner);
     const cardButton = cardElement(card, { faceUp: !card.hidden, index, owner, selectable });
     cardButton.dataset.deal = String(index * 2 + (owner === "opponent" ? 1 : 0));
@@ -228,6 +232,28 @@ function renderHand(container, hand, owner) {
     cardButton.addEventListener("click", () => handleCardClick(owner, index));
     container.appendChild(cardButton);
   });
+}
+
+// Once a card has been counted its value stays on it, so at the end of the round both
+// players can read what every card in both hands was worth.
+function valueBadge(value) {
+  const badge = document.createElement("span");
+  badge.className = "card-value";
+  badge.textContent = points(value);
+  badge.setAttribute("aria-label", `worth ${value}`);
+  return badge;
+}
+
+function points(value) {
+  return value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+}
+
+// The spot a discarded card left behind: it holds the grid open so nothing shifts.
+function emptySlot() {
+  const slot = document.createElement("span");
+  slot.className = "card-slot";
+  slot.setAttribute("aria-hidden", "true");
+  return slot;
 }
 
 function renderCenter() {
@@ -448,6 +474,7 @@ async function countHand(side, token) {
   tally.classList.add("active");
   let running = 0;
   for (let index = 0; index < hand.length; index += 1) {
+    if (!hand[index]) continue;
     const value = valueOf(hand[index]);
     running += value;
     countCard(container.children[index], value);
@@ -465,6 +492,7 @@ async function countHand(side, token) {
 function countCard(element, value) {
   if (!element) return;
   element.classList.add("counting");
+  element.appendChild(valueBadge(value));
   setTimeout(() => {
     element.classList.remove("counting");
     element.classList.add("counted");
@@ -472,7 +500,7 @@ function countCard(element, value) {
 
   const chip = document.createElement("span");
   chip.className = "count-chip";
-  chip.textContent = value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
+  chip.textContent = points(value);
   element.appendChild(chip);
   if (reduceMotion.matches) {
     setTimeout(() => chip.remove(), 700);
@@ -527,9 +555,14 @@ function skipCountUp() {
 
 function repaintCountUp() {
   for (const [side, container] of [["player", els.playerHand], ["opponent", els.aiHand]]) {
+    const hand = handFor(side);
     container.classList.toggle("tallying", countProgress.active === side);
     [...container.children].forEach((card, index) => {
-      card.classList.toggle("counted", index < countProgress[side]);
+      const counted = index < countProgress[side];
+      card.classList.toggle("counted", counted);
+      const badge = card.querySelector(".card-value");
+      if (counted && hand[index] && !badge) card.appendChild(valueBadge(valueOf(hand[index])));
+      else if (!counted && badge) badge.remove();
     });
   }
 }
@@ -579,7 +612,7 @@ function wait(ms) {
 
 function revealedCardName() {
   for (const candidate of state.players) {
-    const revealed = candidate.hand.find((card) => !card.hidden);
+    const revealed = candidate.hand.find((card) => card && !card.hidden);
     if (revealed) return prettyCard(revealed);
   }
   return "that card";

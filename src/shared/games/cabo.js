@@ -157,7 +157,7 @@ export function applyAction(game, playerId, action, tools) {
 
     case "MATCH_START":
       expectPhase(game, "await-draw");
-      assert(game.hands[playerId].length > 0, "You have no cards to match.");
+      assert(handCount(game.hands[playerId]) > 0, "You have no cards to match.");
       game.phase = "match-mode";
       break;
 
@@ -237,7 +237,7 @@ export function viewForPlayer(game, playerId) {
     name: player.name,
     rematchReady: player.rematchReady,
     hand: (game.hands[player.id] || []).map((card, index) =>
-      cardView(card, isCardVisible(game, playerId, player.id, index)),
+      card ? cardView(card, isCardVisible(game, playerId, player.id, index)) : null,
     ),
   }));
 
@@ -380,12 +380,12 @@ function tryMatch(game, playerId, index, randomInt) {
   const top = game.discard.at(-1);
   assert(top, "The discard pile is empty.");
   if (card.rank === top.rank) {
-    hand.splice(index, 1);
+    hand[index] = null;
     game.discard.push(card);
     record(game, playerId, `Matched the discard with ${prettyCard(card)}.`);
   } else {
     refillDeck(game, randomInt);
-    hand.push(game.deck.pop());
+    placeCard(hand, game.deck.pop());
     record(game, playerId, `Tried ${prettyCard(card)}. Wrong match — drew a penalty card.`);
   }
   game.phase = "await-draw";
@@ -479,7 +479,7 @@ function finishGame(game) {
   game.scores = Object.fromEntries(
     game.players.map((player) => [
       player.id,
-      game.hands[player.id].reduce((total, card) => total + scoreCard(card), 0),
+      game.hands[player.id].reduce((total, card) => total + (card ? scoreCard(card) : 0), 0),
     ]),
   );
   const best = Math.min(...Object.values(game.scores));
@@ -553,7 +553,28 @@ function expectPhase(game, phase) {
 }
 
 function assertIndex(hand, index) {
-  assert(Number.isInteger(index) && index >= 0 && index < hand.length, "That card is not available.");
+  assert(
+    Number.isInteger(index) && index >= 0 && index < hand.length && Boolean(hand[index]),
+    "That card is not available.",
+  );
+}
+
+// A hand is a fixed set of spots: a card that leaves it empties its spot rather than
+// sliding the rest of the hand up, so cards stay where each player memorized them.
+function handCount(hand) {
+  return hand.filter(Boolean).length;
+}
+
+// A card coming into a hand takes the first empty spot, and only grows the hand when
+// every spot is filled.
+function placeCard(hand, card) {
+  const empty = hand.indexOf(null);
+  if (empty !== -1) {
+    hand[empty] = card;
+    return empty;
+  }
+  hand.push(card);
+  return hand.length - 1;
 }
 
 function record(game, actorId, text) {
