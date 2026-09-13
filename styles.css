@@ -101,7 +101,7 @@ button { color: inherit; touch-action: manipulation; }
   font-size: 18px;
 }
 
-.top-actions { display: flex; gap: 18px; }
+.top-actions { display: flex; align-items: center; gap: 18px; }
 .text-button,
 .icon-button {
   border: 0;
@@ -111,6 +111,8 @@ button { color: inherit; touch-action: manipulation; }
   color: var(--muted);
 }
 .text-button:hover, .icon-button:hover { color: var(--ink); }
+.gear-button { display: inline-flex; align-items: center; }
+.gear-button svg { display: block; }
 
 /* Play area: history on the left, the table centered, an empty column balancing it. */
 .play {
@@ -445,23 +447,52 @@ button { color: inherit; touch-action: manipulation; }
 .rules-grid span { color: var(--muted); }
 .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
 
-.level-options { display: grid; gap: 8px; margin: 16px 0 20px; }
-.level-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
+/* Settings: segmented choices built on real radio buttons, so arrow keys work. */
+.setting { margin-top: 22px; }
+.setting-label {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.level-option span { color: var(--muted); font-size: 13px; line-height: 1.4; }
-.level-option[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.segmented {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.segmented label { position: relative; cursor: pointer; }
+.segmented input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.segmented span {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+.segmented input:checked + span { background: var(--ink); color: var(--bg); }
+.segmented input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
 @media (hover: hover) {
-  .level-option:hover { border-color: var(--ink); }
+  .segmented label:hover input:not(:checked) + span { color: var(--ink); }
+}
+.setting-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.level-note { min-height: 3em; }
+.inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
 .result-content { text-align: center; }

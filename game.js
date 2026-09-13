@@ -18,13 +18,17 @@
     historyBtn: document.getElementById("historyBtn"),
     historyDialog: document.getElementById("historyDialog"),
     closeHistoryBtn: document.getElementById("closeHistoryBtn"),
-    themeBtn: document.getElementById("themeBtn"),
     themeColor: document.querySelector('meta[name="theme-color"]'),
-    newGameDialog: document.getElementById("newGameDialog"),
-    closeNewGameBtn: document.getElementById("closeNewGameBtn"),
-    levelOptions: document.querySelectorAll(".level-option"),
-    dealBtn: document.getElementById("dealBtn"),
-    changeLevelBtn: document.getElementById("changeLevelBtn"),
+    settingsBtn: document.getElementById("settingsBtn"),
+    settingsDialog: document.getElementById("settingsDialog"),
+    closeSettingsBtn: document.getElementById("closeSettingsBtn"),
+    levelRadios: document.querySelectorAll('input[name="level"]'),
+    themeRadios: document.querySelectorAll('input[name="theme"]'),
+    levelNote: document.getElementById("levelNote"),
+    levelPending: document.getElementById("levelPending"),
+    levelPendingText: document.getElementById("levelPendingText"),
+    newGameNowBtn: document.getElementById("newGameNowBtn"),
+    resultSettingsBtn: document.getElementById("resultSettingsBtn"),
     rulesBtn: document.getElementById("rulesBtn"),
     closeRulesBtn: document.getElementById("closeRulesBtn"),
     rulesDialog: document.getElementById("rulesDialog"),
@@ -52,6 +56,11 @@
   };
   const WHO_LABELS = { you: "you", computer: "computer", round: "round" };
   const LEVELS = ["easy", "medium", "hard"];
+  const LEVEL_NOTES = {
+    easy: "Forgets cards once they move and only swaps in cards it's sure about.",
+    medium: "Swaps out its weakest cards, even unseen ones, and only uses powers when they help.",
+    hard: "Also follows cards as they move, counts cards, and waits for the right moment to call Cabo.",
+  };
   let level = savedLevel();
 
   function savedLevel() {
@@ -1189,30 +1198,32 @@
     return new Promise(resolve => later(resolve, ms));
   }
 
-  // Dark mode follows the system until the toggle picks a side; the choice is remembered.
+  // Appearance follows the system unless settings pick light or dark; the choice is remembered.
   const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-  function currentTheme() {
-    return document.documentElement.dataset.theme || (darkQuery.matches ? "dark" : "light");
+  function themeSetting() {
+    return document.documentElement.dataset.theme || "system";
   }
 
-  function updateThemeControls() {
-    const dark = currentTheme() === "dark";
-    els.themeBtn.textContent = dark ? "light" : "dark";
-    els.themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  function applyTheme(value) {
+    if (value === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = value;
+    try {
+      if (value === "system") localStorage.removeItem("theme");
+      else localStorage.setItem("theme", value);
+    } catch {}
+    updateThemeColor();
+  }
+
+  // Tint the browser's own toolbar to match.
+  function updateThemeColor() {
+    const setting = themeSetting();
+    const dark = setting === "dark" || (setting === "system" && darkQuery.matches);
     els.themeColor.content = dark ? "#161614" : "#f4f0e7";
   }
 
-  function toggleTheme() {
-    const next = currentTheme() === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem("theme", next); } catch {}
-    updateThemeControls();
-  }
-
-  els.themeBtn.addEventListener("click", toggleTheme);
-  darkQuery.addEventListener("change", updateThemeControls);
-  updateThemeControls();
+  darkQuery.addEventListener("change", updateThemeColor);
+  updateThemeColor();
 
   els.deck.addEventListener("click", drawFromDeck);
   els.discard.addEventListener("click", drawFromDiscard);
@@ -1221,29 +1232,38 @@
   els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
   els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   els.playAgainBtn.addEventListener("click", () => { els.resultDialog.close(); startGame(); });
-  // New game asks for a level first; "play again" keeps the current one.
-  function openNewGame() {
+  // Settings: the computer's level (used from the next game) and the appearance (used now).
+  function openSettings() {
     if (els.resultDialog.open) els.resultDialog.close();
-    for (const option of els.levelOptions) option.setAttribute("aria-pressed", String(option.dataset.level === level));
-    els.newGameDialog.showModal();
+    for (const radio of els.levelRadios) radio.checked = radio.value === level;
+    for (const radio of els.themeRadios) radio.checked = radio.value === themeSetting();
+    updateLevelNote();
+    els.settingsDialog.showModal();
   }
 
-  for (const option of els.levelOptions) {
-    option.addEventListener("click", () => {
-      for (const other of els.levelOptions) other.setAttribute("aria-pressed", String(other === option));
+  function updateLevelNote() {
+    els.levelNote.textContent = LEVEL_NOTES[level];
+    els.levelPending.hidden = level === state.level || state.gameOver;
+    els.levelPendingText.textContent = `This game stays on ${state.level}.`;
+  }
+
+  for (const radio of els.levelRadios) {
+    radio.addEventListener("change", () => {
+      level = radio.value;
+      try { localStorage.setItem("level", level); } catch {}
+      updateLevelNote();
     });
   }
+  for (const radio of els.themeRadios) radio.addEventListener("change", () => applyTheme(radio.value));
 
-  els.dealBtn.addEventListener("click", () => {
-    const chosen = [...els.levelOptions].find((option) => option.getAttribute("aria-pressed") === "true");
-    if (chosen) level = chosen.dataset.level;
-    try { localStorage.setItem("level", level); } catch {}
-    els.newGameDialog.close();
+  els.settingsBtn.addEventListener("click", openSettings);
+  els.closeSettingsBtn.addEventListener("click", () => els.settingsDialog.close());
+  els.resultSettingsBtn.addEventListener("click", openSettings);
+  els.newGameNowBtn.addEventListener("click", () => {
+    els.settingsDialog.close();
     startGame();
   });
-  els.closeNewGameBtn.addEventListener("click", () => els.newGameDialog.close());
-  els.changeLevelBtn.addEventListener("click", openNewGame);
-  els.newGameBtn.addEventListener("click", openNewGame);
+  els.newGameBtn.addEventListener("click", startGame);
 
   startGame();
 })();
