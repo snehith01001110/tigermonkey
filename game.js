@@ -5,16 +5,14 @@
   const els = {
     aiHand: document.getElementById("aiHand"),
     playerHand: document.getElementById("playerHand"),
-    aiStatus: document.getElementById("aiStatus"),
-    playerStatus: document.getElementById("playerStatus"),
     deck: document.getElementById("deck"),
+    deckStack: document.getElementById("deckStack"),
+    deckCount: document.getElementById("deckCount"),
+    held: document.getElementById("held"),
     discard: document.getElementById("discard"),
+    turnLabel: document.getElementById("turnLabel"),
     message: document.getElementById("message"),
-    drawnArea: document.getElementById("drawnArea"),
-    drawnCard: document.getElementById("drawnCard"),
-    drawActions: document.getElementById("drawActions"),
-    matchBtn: document.getElementById("matchBtn"),
-    caboBtn: document.getElementById("caboBtn"),
+    actions: document.getElementById("actions"),
     rulesBtn: document.getElementById("rulesBtn"),
     closeRulesBtn: document.getElementById("closeRulesBtn"),
     rulesDialog: document.getElementById("rulesDialog"),
@@ -29,6 +27,16 @@
 
   let state;
 
+  const MOVE_MS = 460;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const POWER_LABELS = {
+    "peek-own": "peek yours",
+    "peek-opponent": "peek theirs",
+    "blind-swap": "blind swap",
+    "swap-check": "swap, then check",
+    "check-swap": "check, then swap",
+  };
+
   function freshState() {
     const deck = shuffle(makeDeck());
     const player = deck.splice(0, 4);
@@ -40,9 +48,11 @@
       player,
       ai,
       turn: "player",
-      phase: "initial-peek",
+      phase: "dealing",
       drawn: null,
       drawnSource: null,
+      aiDrawn: null,
+      aiDrawnShown: false,
       selectedOwn: null,
       selectedOpp: null,
       pendingPower: null,
@@ -51,8 +61,9 @@
       playerKnown: new Set([2, 3]),
       aiKnown: new Set([2, 3]),
       aiKnowsPlayer: new Set(),
-      temporaryPlayerReveal: new Set([2, 3]),
+      temporaryPlayerReveal: new Set(),
       temporaryAiReveal: new Set(),
+      lifted: new Set(),
       caboCaller: null,
       finalTurnOwner: null,
       gameOver: false,
@@ -115,98 +126,154 @@
     button.type = "button";
     button.className = `card ${faceUp ? "face-up" : "face-down"}`;
     button.disabled = !selectable;
+    button.dataset.cardId = card.id;
+    button.setAttribute("aria-label", faceUp ? pretty(card) : "face-down card");
+    if (selectable) button.classList.add("selectable");
     if (index !== null) button.dataset.index = String(index);
     if (owner) button.dataset.owner = owner;
 
-    if (faceUp) {
-      const red = card.suit === "♥" || card.suit === "♦";
-      if (red) button.classList.add("red");
-      const label = card.rank === "JOKER" ? "★" : card.rank;
-      const suit = card.rank === "JOKER" ? "" : card.suit;
-      button.innerHTML = `
-        <div class="card-corner"><span>${label}</span><span class="card-suit">${suit}</span></div>
-        <div class="card-center">${card.rank === "JOKER" ? "★" : suit}</div>
-        <div class="card-corner bottom"><span>${label}</span><span class="card-suit">${suit}</span></div>`;
-    }
+    const red = card.suit === "♥" || card.suit === "♦";
+    const label = card.rank === "JOKER" ? "★" : card.rank;
+    const suit = card.rank === "JOKER" ? "" : card.suit;
+    button.innerHTML = `
+      <span class="card-inner">
+        <span class="card-face card-back"></span>
+        <span class="card-face card-front${red ? " red" : ""}" aria-hidden="true">
+          <span class="card-corner"><span>${label}</span><span class="card-suit">${suit}</span></span>
+          <span class="card-center">${card.rank === "JOKER" ? "★" : suit}</span>
+          <span class="card-corner bottom"><span>${label}</span><span class="card-suit">${suit}</span></span>
+        </span>
+      </span>`;
     return button;
   }
 
   function render() {
+    const before = snapshotCards();
     renderHands();
-    renderDiscard();
-    renderDrawn();
-    updateControls();
+    renderCenter();
+    renderDock();
+    animateCards(before);
+  }
+
+  function snapshotCards() {
+    const snap = new Map();
+    for (const el of document.querySelectorAll(".card[data-card-id]")) {
+      snap.set(el.dataset.cardId, {
+        rect: el.getBoundingClientRect(),
+        width: el.offsetWidth,
+        faceUp: el.classList.contains("face-up"),
+      });
+    }
+    return snap;
+  }
+
+  // Every render rebuilds the cards from state (FLIP): slide each card from where it
+  // was — or from the deck, if it just appeared — to where it is now, flipping it
+  // over if its face changed. New cards are dealt one after another.
+  function animateCards(before) {
+    if (reduceMotion.matches) return;
+    const deckRect = (els.deckStack.lastElementChild || els.deck).getBoundingClientRect();
+    const fromDeck = { rect: deckRect, width: deckRect.width, faceUp: false };
+    const dealt = [];
+
+    for (const el of document.querySelectorAll(".card[data-card-id]")) {
+      const prev = before.get(el.dataset.cardId);
+      if (prev) animateCard(el, prev, 0);
+      else if (!el.dataset.under) dealt.push(el); // uncovered discards were already there
+    }
+    dealt
+      .sort((a, b) => Number(a.dataset.deal || 0) - Number(b.dataset.deal || 0))
+      .forEach((el, i) => animateCard(el, fromDeck, i * 90));
+  }
+
+  function animateCard(el, from, delay) {
+    const to = el.getBoundingClientRect();
+    const dx = from.rect.left + from.rect.width / 2 - (to.left + to.width / 2);
+    const dy = from.rect.top + from.rect.height / 2 - (to.top + to.height / 2);
+    const scale = from.width / el.offsetWidth;
+    const timing = { duration: MOVE_MS, delay, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "backwards" };
+
+    if (Math.abs(dx) + Math.abs(dy) > 1 || Math.abs(scale - 1) > 0.01) {
+      el.style.zIndex = "10";
+      const lift = ((scale + 1) / 2) * 1.06;
+      el.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
+          { transform: `translate(${dx / 2}px, ${dy / 2}px) scale(${lift})`, offset: 0.5 },
+          { transform: "translate(0, 0) scale(1)" },
+        ],
+        { ...timing, composite: "add" },
+      ).finished.then(() => { el.style.zIndex = ""; }, () => {});
+    }
+
+    const faceUp = el.classList.contains("face-up");
+    if (faceUp !== from.faceUp) {
+      el.querySelector(".card-inner").animate(
+        [{ transform: `rotateY(${from.faceUp ? 180 : 0}deg)` }, { transform: `rotateY(${faceUp ? 180 : 0}deg)` }],
+        timing,
+      );
+    }
   }
 
   function renderHands() {
-    els.playerHand.innerHTML = "";
-    state.player.forEach((card, index) => {
-      const faceUp = state.gameOver || state.temporaryPlayerReveal.has(index);
-      const selectable = canSelectCard("player", index);
-      const el = cardElement(card, { faceUp, index, owner: "player", selectable });
-      if (state.selectedOwn === index) el.classList.add("selected");
-      el.addEventListener("click", () => handleCardClick("player", index));
-      els.playerHand.appendChild(el);
-    });
+    renderHand(els.playerHand, state.player, "player");
+    renderHand(els.aiHand, state.ai, "ai");
+  }
 
-    els.aiHand.innerHTML = "";
-    state.ai.forEach((card, index) => {
-      const faceUp = state.gameOver || state.temporaryAiReveal.has(index);
-      const selectable = canSelectCard("ai", index);
-      const el = cardElement(card, { faceUp, index, owner: "ai", selectable });
-      if (state.selectedOpp === index) el.classList.add("selected");
-      el.addEventListener("click", () => handleCardClick("ai", index));
-      els.aiHand.appendChild(el);
+  function renderHand(container, hand, owner) {
+    const reveal = owner === "player" ? state.temporaryPlayerReveal : state.temporaryAiReveal;
+    const selected = owner === "player" ? state.selectedOwn : state.selectedOpp;
+    container.innerHTML = "";
+    hand.forEach((card, index) => {
+      const faceUp = state.gameOver || reveal.has(index);
+      const el = cardElement(card, { faceUp, index, owner, selectable: canSelectCard(owner, index) });
+      el.dataset.deal = String(index * 2 + (owner === "ai" ? 1 : 0));
+      if (selected === index) el.classList.add("selected");
+      if (state.lifted.has(`${owner}:${index}`)) el.classList.add("lifted");
+      el.addEventListener("click", () => handleCardClick(owner, index));
+      container.appendChild(el);
     });
   }
 
-  function renderDiscard() {
-    els.discard.innerHTML = "";
-    const top = state.discard[state.discard.length - 1];
-    if (top) {
-      const card = cardElement(top, { faceUp: true });
-      card.disabled = true;
-      els.discard.appendChild(card);
+  function renderCenter() {
+    // A fuller deck is a taller stack; only rebuild it when its height changes.
+    const layers = Math.min(6, Math.ceil(state.deck.length / 9));
+    if (els.deckStack.childElementCount !== layers) {
+      els.deckStack.innerHTML = "";
+      for (let i = 0; i < layers; i++) {
+        const layer = document.createElement("span");
+        layer.className = "deck-layer";
+        layer.style.setProperty("--i", String(i));
+        els.deckStack.appendChild(layer);
+      }
     }
+    els.deckCount.textContent = `deck · ${state.deck.length}`;
+
+    els.held.innerHTML = "";
+    if (state.drawn) els.held.appendChild(cardElement(state.drawn, { faceUp: true }));
+    else if (state.aiDrawn) els.held.appendChild(cardElement(state.aiDrawn, { faceUp: state.aiDrawnShown }));
+
+    // Show the top few discards, each at a slight angle, so the pile reads as a pile.
+    els.discard.innerHTML = "";
+    const pile = state.discard.slice(-3);
+    pile.forEach((card, i) => {
+      const el = cardElement(card, { faceUp: true });
+      el.style.rotate = `${tilt(card)}deg`;
+      if (i < pile.length - 1) el.dataset.under = "true";
+      else el.dataset.deal = "99";
+      els.discard.appendChild(el);
+    });
+    els.discard.classList.toggle("empty", pile.length === 0);
     const label = document.createElement("span");
     label.className = "pile-label";
     label.textContent = "discard";
     els.discard.appendChild(label);
   }
 
-  function renderDrawn() {
-    if (!state.drawn || state.turn !== "player") {
-      els.drawnArea.classList.add("hidden");
-      els.drawnCard.innerHTML = "";
-      els.drawActions.innerHTML = "";
-      return;
-    }
-
-    els.drawnArea.classList.remove("hidden");
-    els.drawnCard.innerHTML = "";
-    const drawn = cardElement(state.drawn, { faceUp: true });
-    drawn.disabled = true;
-    els.drawnCard.appendChild(drawn);
-    els.drawActions.innerHTML = "";
-
-    if (state.phase === "drawn") {
-      const swap = actionButton("replace a card", "secondary-button", () => {
-        state.phase = "choose-replace";
-        say("Choose one of your cards to replace.");
-        render();
-      });
-      els.drawActions.appendChild(swap);
-
-      if (state.drawnSource === "deck") {
-        const discard = actionButton("discard", "secondary-button", playerDiscardDrawn);
-        els.drawActions.appendChild(discard);
-      }
-    }
-
-    if (state.phase === "king-swap-choice") {
-      els.drawActions.appendChild(actionButton("swap", "secondary-button", executeKingSwap));
-      els.drawActions.appendChild(actionButton("keep hands", "secondary-button", finishPowerTurn));
-    }
+  function tilt(card) {
+    let hash = 0;
+    for (const ch of card.id) hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+    return (Math.abs(hash) % 9) - 4;
   }
 
   function actionButton(label, className, fn) {
@@ -218,15 +285,53 @@
     return b;
   }
 
-  function updateControls() {
-    const yourTurn = state.turn === "player" && !state.gameOver;
-    const neutralPhase = state.phase === "await-draw";
-    els.deck.disabled = !(yourTurn && neutralPhase);
-    els.matchBtn.disabled = !(yourTurn && neutralPhase && state.player.length > 0 && state.discard.length > 0);
-    els.caboBtn.disabled = !(yourTurn && neutralPhase && !state.caboCaller);
+  function renderDock() {
+    const yours = state.turn === "player" && !state.gameOver && state.phase !== "dealing";
+    els.turnLabel.textContent = turnLabel();
+    els.turnLabel.classList.toggle("active", yours);
 
-    els.playerStatus.textContent = state.gameOver ? "revealed" : state.turn === "player" ? "your turn" : "waiting";
-    els.aiStatus.textContent = state.gameOver ? "revealed" : state.turn === "ai" ? "thinking" : "waiting";
+    const canDraw = yours && state.phase === "await-draw";
+    els.deck.disabled = !canDraw;
+    els.deck.classList.toggle("ready", canDraw);
+    els.discard.classList.toggle("ready", canDraw && state.discard.length > 0);
+
+    els.actions.innerHTML = "";
+    for (const [label, fn, primary] of availableActions()) {
+      els.actions.appendChild(actionButton(label, primary ? "primary-button" : "secondary-button", fn));
+    }
+  }
+
+  function turnLabel() {
+    if (state.gameOver) return "round over";
+    if (state.phase === "dealing") return "dealing";
+    if (state.turn === "ai") return "computer's turn";
+    return state.caboCaller === "ai" ? "your final turn" : "your turn";
+  }
+
+  // The dock only offers what makes sense right now; drawing is done by tapping the piles.
+  function availableActions() {
+    if (state.gameOver) return [["play again", startGame, true]];
+    if (state.turn !== "player") return [];
+    switch (state.phase) {
+      case "initial-peek":
+        return [["got it", finishInitialPeek, true]];
+      case "await-draw": {
+        const actions = [];
+        if (state.player.length) actions.push(["match discard", enterMatchMode]);
+        if (!state.caboCaller) actions.push(["call cabo", callCabo, true]);
+        return actions;
+      }
+      case "drawn": {
+        const power = POWER_LABELS[powerFor(state.drawn)];
+        return [[power ? `discard · ${power}` : "discard", playerDiscardDrawn]];
+      }
+      case "match-mode":
+        return [["cancel", cancelMatch]];
+      case "king-swap-choice":
+        return [["keep hands", finishPowerTurn], ["swap", executeKingSwap, true]];
+      default:
+        return state.phase.startsWith("power-") && state.phase !== "power-resolving" ? [["skip", skipPower]] : [];
+    }
   }
 
   function say(text) {
@@ -236,7 +341,7 @@
   function canSelectCard(owner, index) {
     if (state.gameOver || state.turn !== "player") return false;
     if (owner === "player") {
-      return ["choose-replace", "match-mode", "power-peek-own", "power-j-own", "power-q-own", "power-k-own"].includes(state.phase);
+      return ["drawn", "choose-replace", "match-mode", "power-peek-own", "power-j-own", "power-q-own", "power-k-own"].includes(state.phase);
     }
     return ["power-peek-opponent", "power-j-opponent", "power-q-opponent", "power-k-check-opponent"].includes(state.phase);
   }
@@ -245,7 +350,7 @@
     if (!canSelectCard(owner, index)) return;
 
     if (owner === "player") {
-      if (state.phase === "choose-replace") return replaceWithDrawn(index);
+      if (state.phase === "drawn" || state.phase === "choose-replace") return replaceWithDrawn(index);
       if (state.phase === "match-mode") return tryPlayerMatch(index);
       if (state.phase === "power-peek-own") return playerPeekOwn(index);
       if (state.phase === "power-j-own") {
@@ -275,16 +380,26 @@
   }
 
   function startGame() {
+    if (els.resultDialog.open) els.resultDialog.close();
     state = freshState();
-    say("Look at your bottom two cards.");
+    // Clear the old table so the new hands are dealt from the deck, not slid over.
+    for (const el of [els.aiHand, els.playerHand, els.held, els.discard]) el.innerHTML = "";
+    say("Dealing…");
     render();
-    setTimeout(() => {
-      if (state.phase !== "initial-peek") return;
-      state.temporaryPlayerReveal.clear();
-      state.phase = "await-draw";
-      say("Your turn. Draw from the deck, or take the discard.");
+    later(() => {
+      state.temporaryPlayerReveal = new Set([2, 3]);
+      state.phase = "initial-peek";
+      say("Memorize your bottom two cards, then press got it.");
       render();
-    }, 2200);
+    }, 1300);
+  }
+
+  function finishInitialPeek() {
+    if (state.phase !== "initial-peek") return;
+    state.temporaryPlayerReveal.clear();
+    state.phase = "await-draw";
+    say("Your turn. Draw from the deck, or take the discard.");
+    render();
   }
 
   function drawFromDeck() {
@@ -293,7 +408,7 @@
     state.drawn = state.deck.pop();
     state.drawnSource = "deck";
     state.phase = "drawn";
-    say(`You drew ${pretty(state.drawn)}. Keep it or discard it${powerFor(state.drawn) ? " to use its power" : ""}.`);
+    say(`You drew ${pretty(state.drawn)}. Tap one of your cards to swap it in, or discard it${powerFor(state.drawn) ? " to use its power" : ""}.`);
     render();
   }
 
@@ -303,7 +418,7 @@
     state.drawn = state.discard.pop();
     state.drawnSource = "discard";
     state.phase = "choose-replace";
-    say(`You took ${pretty(state.drawn)}. Choose one of your cards to replace.`);
+    say(`You took ${pretty(state.drawn)}. Tap one of your cards to swap it in.`);
     render();
   }
 
@@ -359,23 +474,27 @@
   function temporaryReveal(set, index, ms = 1500) {
     set.add(index);
     render();
-    setTimeout(() => {
+    later(() => {
       set.delete(index);
       render();
     }, ms);
   }
 
+  // While a peek resolves nothing is tappable, so a second tap can't end the turn twice.
+  // The turn ends only after the card has flipped back down.
   function playerPeekOwn(index) {
+    state.phase = "power-resolving";
     state.playerKnown.add(index);
-    temporaryReveal(state.temporaryPlayerReveal, index, 1600);
     say(`Remember ${pretty(state.player[index])}.`);
-    setTimeout(finishPowerTurn, 1650);
+    temporaryReveal(state.temporaryPlayerReveal, index, 2000);
+    later(finishPowerTurn, 2000 + MOVE_MS + 40);
   }
 
   function playerPeekOpponent(index) {
-    temporaryReveal(state.temporaryAiReveal, index, 1600);
+    state.phase = "power-resolving";
     say(`Remember their ${pretty(state.ai[index])}.`);
-    setTimeout(finishPowerTurn, 1650);
+    temporaryReveal(state.temporaryAiReveal, index, 2000);
+    later(finishPowerTurn, 2000 + MOVE_MS + 40);
   }
 
   function playerBlindSwap(aiIndex) {
@@ -388,9 +507,15 @@
     const ownIndex = state.selectedOwn;
     swapCards(ownIndex, aiIndex);
     state.playerKnown.add(ownIndex);
-    temporaryReveal(state.temporaryPlayerReveal, ownIndex, 1600);
-    say(`You received ${pretty(state.player[ownIndex])}. Remember it.`);
-    setTimeout(finishPowerTurn, 1650);
+    state.phase = "power-resolving";
+    state.selectedOwn = null;
+    say("Swapped. Here's what you got…");
+    render();
+    later(() => {
+      say(`You received ${pretty(state.player[ownIndex])}. Remember it.`);
+      temporaryReveal(state.temporaryPlayerReveal, ownIndex, 2000);
+      later(finishPowerTurn, 2000 + MOVE_MS + 40);
+    }, MOVE_MS);
   }
 
   function playerKingCheck(aiIndex) {
@@ -435,6 +560,17 @@
     render();
   }
 
+  function cancelMatch() {
+    state.phase = "await-draw";
+    say("Your turn. Draw from the deck, or take the discard.");
+    render();
+  }
+
+  function skipPower() {
+    say("You skipped the power.");
+    finishPowerTurn();
+  }
+
   function tryPlayerMatch(index) {
     const top = state.discard[state.discard.length - 1];
     const card = state.player[index];
@@ -471,7 +607,7 @@
     state.turn = "ai";
     state.phase = "ai-turn";
     render();
-    setTimeout(aiTurn, 750);
+    later(aiTurn, 750);
   }
 
   function endPlayerTurn() {
@@ -486,7 +622,7 @@
     state.turn = "ai";
     state.phase = "ai-turn";
     render();
-    setTimeout(aiTurn, 700);
+    later(aiTurn, 700);
   }
 
   async function aiTurn() {
@@ -495,8 +631,7 @@
     if (!state.caboCaller && shouldAiCallCabo()) {
       state.caboCaller = "ai";
       state.finalTurnOwner = "player";
-      say("The computer calls Cabo. You get one final turn.");
-      await pause(800);
+      await step("The computer calls Cabo. You get one final turn.", 1000);
       state.turn = "player";
       state.phase = "await-draw";
       render();
@@ -510,8 +645,7 @@
       state.discard.push(matched);
       state.ai.splice(matchIndex, 1);
       remapKnowledgeAfterRemoval(state.aiKnown, matchIndex);
-      say(`Computer matched the discard and got rid of a ${matched.rank}.`);
-      await pause(650);
+      await step(`Computer matched the discard with its ${matched.rank}.`, 1000);
     }
 
     const knownHighest = highestKnownIndex(state.ai, state.aiKnown);
@@ -519,19 +653,17 @@
     const takeDiscard = discardTop && knownHighest !== null && desirable(discardTop) && score(discardTop) < score(state.ai[knownHighest]);
 
     if (takeDiscard) {
-      const taken = state.discard.pop();
-      const old = state.ai[knownHighest];
-      state.ai[knownHighest] = taken;
-      state.aiKnown.add(knownHighest);
-      state.discard.push(old);
-      say(`Computer took ${pretty(taken)} from the discard.`);
-      await pause(650);
+      state.aiDrawn = state.discard.pop();
+      state.aiDrawnShown = true;
+      await step(`Computer takes the ${pretty(state.aiDrawn)}.`, 800);
+      aiKeepDrawn(knownHighest);
+      await step("Computer swapped it into its hand.", 900);
     } else {
       refillDeckIfNeeded();
-      const drawn = state.deck.pop();
-      say("Computer drew from the deck.");
-      await pause(500);
-      await aiUseDrawnCard(drawn);
+      state.aiDrawn = state.deck.pop();
+      state.aiDrawnShown = false;
+      await step("Computer draws from the deck.", 900);
+      await aiUseDrawnCard(state.aiDrawn);
     }
 
     state.aiTurnCount += 1;
@@ -540,7 +672,7 @@
 
     state.turn = "player";
     state.phase = "await-draw";
-    say("Your turn.");
+    say("Your turn. Tap the deck or the discard to draw.");
     render();
   }
 
@@ -554,25 +686,44 @@
     const shouldKeep = highIndex !== null && score(card) < score(state.ai[highIndex]) && (score(card) <= 6 || !power);
 
     if (shouldKeep) {
-      const old = state.ai[highIndex];
-      state.ai[highIndex] = card;
-      state.aiKnown.add(highIndex);
-      state.discard.push(old);
-      say("Computer kept the drawn card and replaced one of its cards.");
-      await pause(650);
+      aiKeepDrawn(highIndex);
+      await step("Computer kept it and threw away one of its cards.", 1000);
       return;
     }
 
     state.discard.push(card);
+    state.aiDrawn = null;
     if (!power) {
-      say(`Computer discarded ${pretty(card)}.`);
-      await pause(600);
+      await step(`Computer discarded the ${pretty(card)}.`, 900);
       return;
     }
 
-    say(`Computer discarded ${pretty(card)} and used its power.`);
-    await pause(500);
+    await step(`Computer discarded the ${pretty(card)} to use its power.`, 1000);
     await aiUsePower(power);
+  }
+
+  // Each computer move is shown on the table, then held long enough to follow.
+  async function step(text, ms) {
+    say(text);
+    render();
+    await pause(ms);
+  }
+
+  // The computer lifts a card toward itself while it looks, so you can see which one.
+  async function peekStep(key, text) {
+    state.lifted.add(key);
+    await step(text, 1100);
+    state.lifted.delete(key);
+    render();
+    await pause(MOVE_MS);
+  }
+
+  function aiKeepDrawn(index) {
+    const old = state.ai[index];
+    state.ai[index] = state.aiDrawn;
+    state.aiKnown.add(index);
+    state.discard.push(old);
+    state.aiDrawn = null;
   }
 
   async function aiUsePower(power) {
@@ -580,8 +731,7 @@
       const unknown = indices(state.ai).filter(i => !state.aiKnown.has(i));
       const i = randomFrom(unknown.length ? unknown : indices(state.ai));
       if (i !== null) state.aiKnown.add(i);
-      say("Computer peeked at one of its cards.");
-      await pause(600);
+      await peekStep(`ai:${i}`, "Computer peeks at one of its cards.");
       return;
     }
 
@@ -589,8 +739,7 @@
       const unknown = indices(state.player).filter(i => !state.aiKnowsPlayer.has(i));
       const i = randomFrom(unknown.length ? unknown : indices(state.player));
       if (i !== null) state.aiKnowsPlayer.add(i);
-      say("Computer peeked at one of your cards.");
-      await pause(600);
+      await peekStep(`player:${i}`, "Computer peeks at one of your cards.");
       return;
     }
 
@@ -598,8 +747,7 @@
       const own = highestKnownIndex(state.ai, state.aiKnown) ?? randomFrom(indices(state.ai));
       const opp = randomFrom(indices(state.player));
       if (own !== null && opp !== null) aiSwap(own, opp, false);
-      say("Computer made a blind swap.");
-      await pause(650);
+      await step("Computer swaps one of its cards with one of yours, blind.", 1000);
       return;
     }
 
@@ -608,9 +756,9 @@
       const opp = choosePlayerCardForAiSwap();
       if (own !== null && opp !== null) {
         aiSwap(own, opp, true);
-        say("Computer swapped a card, then checked what it received.");
+        await step("Computer swaps a card with one of yours…", 900);
+        await peekStep(`ai:${own}`, "…and checks what it got.");
       }
-      await pause(650);
       return;
     }
 
@@ -618,14 +766,14 @@
       const opp = choosePlayerCardToInspect();
       if (opp === null) return;
       state.aiKnowsPlayer.add(opp);
+      await peekStep(`player:${opp}`, "Computer checks one of your cards…");
       const own = highestKnownIndex(state.ai, state.aiKnown);
       if (own !== null && score(state.player[opp]) < score(state.ai[own])) {
         aiSwap(own, opp, true);
-        say("Computer checked one of your cards and chose to swap.");
+        await step("…and swaps it for one of its own.", 1000);
       } else {
-        say("Computer checked one of your cards and kept both hands as-is.");
+        await step("…and leaves it.", 800);
       }
-      await pause(700);
     }
   }
 
@@ -690,7 +838,7 @@
     els.aiScore.textContent = String(a);
     els.resultEyebrow.textContent = state.caboCaller === "player" ? "you called cabo" : "computer called cabo";
     els.resultTitle.textContent = p < a ? "you win" : p > a ? "computer wins" : "tie game";
-    setTimeout(() => els.resultDialog.showModal(), 700);
+    later(() => els.resultDialog.showModal(), 1200);
   }
 
   function pretty(card) {
@@ -708,14 +856,18 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  // Timers belong to the game that set them: if a new game starts meanwhile, they never fire.
+  function later(fn, ms) {
+    const game = state;
+    setTimeout(() => { if (state === game) fn(); }, ms);
+  }
+
   function pause(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => later(resolve, ms));
   }
 
   els.deck.addEventListener("click", drawFromDeck);
   els.discard.addEventListener("click", drawFromDiscard);
-  els.matchBtn.addEventListener("click", enterMatchMode);
-  els.caboBtn.addEventListener("click", callCabo);
   els.rulesBtn.addEventListener("click", () => els.rulesDialog.showModal());
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
   els.playAgainBtn.addEventListener("click", () => { els.resultDialog.close(); startGame(); });

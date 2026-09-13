@@ -17,44 +17,28 @@
       </div>
     </header>
 
-    <section class="board" aria-label="Cabo game board">
-      <div class="player-block ai-block">
-        <div class="player-label">
-          <span>computer</span>
-          <span id="aiStatus" class="muted">thinking in cards</span>
-        </div>
-        <div id="aiHand" class="hand" aria-label="Computer cards"></div>
-      </div>
+    <section class="table" aria-label="Cabo table">
+      <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
 
       <div class="table-center">
-        <button id="deck" class="pile deck-pile" type="button" aria-label="Draw from deck">
-          <span class="card-back-mark">tm</span>
-          <span class="pile-label">deck</span>
+        <button id="deck" class="deck" type="button" aria-label="Draw from deck">
+          <span id="deckStack" class="deck-stack"></span>
+          <span id="deckCount" class="pile-label">deck</span>
         </button>
-
-        <div id="discard" class="pile discard-pile" aria-label="Discard pile"></div>
+        <div id="held" class="slot" aria-label="Drawn card"></div>
+        <div id="discard" class="slot discard-pile" aria-label="Discard pile"></div>
       </div>
 
-      <div id="actionPanel" class="action-panel" aria-live="polite">
-        <div id="message" class="message">Look at your bottom two cards.</div>
-        <div id="drawnArea" class="drawn-area hidden">
-          <div id="drawnCard"></div>
-          <div id="drawActions" class="draw-actions"></div>
-        </div>
-        <div class="turn-actions">
-          <button id="matchBtn" class="secondary-button" type="button">match discard</button>
-          <button id="caboBtn" class="primary-button" type="button">call cabo</button>
-        </div>
-      </div>
-
-      <div class="player-block you-block">
-        <div id="playerHand" class="hand" aria-label="Your cards"></div>
-        <div class="player-label">
-          <span>you</span>
-          <span id="playerStatus" class="muted">your turn</span>
-        </div>
-      </div>
+      <div id="playerHand" class="hand" aria-label="Your cards"></div>
     </section>
+
+    <footer class="dock">
+      <div class="status" aria-live="polite">
+        <span id="turnLabel" class="turn-label">dealing</span>
+        <span id="message" class="message">Dealing…</span>
+      </div>
+      <div id="actions" class="actions"></div>
+    </footer>
   </main>
 
   <dialog id="rulesDialog" class="modal">
