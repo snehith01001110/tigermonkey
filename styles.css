@@ -635,6 +635,56 @@ button { color: inherit; touch-action: manipulation; }
   .segmented label:hover input:not(:checked) + span { color: var(--ink); }
 }
 .setting-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.desktop-only-setting { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .desktop-only-setting { display: block; }
+}
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  cursor: pointer;
+}
+.setting-copy { display: flex; flex-direction: column; min-width: 0; }
+.setting-toggle .setting-label { margin-bottom: 4px; }
+.setting-toggle .setting-note { margin: 0; }
+.setting-toggle > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease);
+}
+.toggle-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 160ms var(--ease), background 160ms var(--ease);
+}
+.setting-toggle > input:checked + .toggle-track { border-color: var(--ink); background: var(--ink); }
+.setting-toggle > input:checked + .toggle-track .toggle-thumb { background: var(--bg); transform: translateX(18px); }
+.setting-toggle > input:focus-visible + .toggle-track { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* Keyboard mode follows the game's current legal moves and makes the focused one unmistakable. */
+html[data-keyboard-controls] .keyboard-target:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 5px;
+}
+html[data-keyboard-controls] .card.keyboard-target:focus-visible { transform: translateY(-5px); }
 .inline-link {
   padding: 0;
   border: 0;
@@ -678,6 +728,7 @@ button { color: inherit; touch-action: manipulation; }
 
 @media (prefers-reduced-motion: reduce) {
   .card, .deck-layer { transition: none; }
+  .toggle-track, .toggle-thumb { transition: none; }
   .card-value { animation: none; }
   .tally, .result-line { animation: none; }
   .hand.tallying .card { opacity: 1; }

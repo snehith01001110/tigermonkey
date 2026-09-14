@@ -363,6 +363,7 @@
     els.deck.disabled = !canDraw;
     els.deck.classList.toggle("ready", canDraw);
     els.discard.classList.toggle("ready", canDraw && state.discard.length > 0);
+    els.discard.setAttribute("aria-disabled", String(!(canDraw && state.discard.length > 0)));
 
     els.actions.innerHTML = "";
     for (const [label, fn, primary] of availableActions()) {
@@ -544,7 +545,7 @@
     state.drawnSource = "deck";
     state.phase = "drawn";
     record("you", "Drew from the deck.");
-    say(`You drew ${pretty(state.drawn)}. Tap one of your cards to swap it in, or discard it${powerFor(state.drawn) ? " to use its power" : ""}.`);
+    say(`You drew ${pretty(state.drawn)}. Choose one of your cards to swap it in, or discard it${powerFor(state.drawn) ? " to use its power" : ""}.`);
     render();
   }
 
@@ -555,7 +556,7 @@
     state.drawnSource = "discard";
     state.phase = "choose-replace";
     record("you", "Took ", state.drawn, " from the discard.");
-    say(`You took ${pretty(state.drawn)}. Tap one of your cards to swap it in.`);
+    say(`You took ${pretty(state.drawn)}. Choose one of your cards to swap it in.`);
     render();
   }
 
@@ -828,7 +829,7 @@
 
     state.turn = "player";
     state.phase = "await-draw";
-    say("Your turn. Tap the deck or the discard to draw.");
+    say("Your turn. Draw from the deck or the discard.");
     render();
   }
 

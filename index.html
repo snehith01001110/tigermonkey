@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f4f0e7" />
   <meta name="multiplayer-api" content="https://tigermonkey-multiplayer.snehithn5.workers.dev" />
   <title>TigerMonkey — Cabo</title>
+  <link rel="icon" href="assets/queen-of-hearts.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600&family=Kelly+Slab&display=swap" rel="stylesheet" />
@@ -51,7 +52,7 @@
             <span id="deckCount" class="pile-label">deck</span>
           </button>
           <div id="held" class="slot" aria-label="Drawn card"></div>
-          <div id="discard" class="slot discard-pile" aria-label="Discard pile"></div>
+          <div id="discard" class="slot discard-pile" role="button" aria-label="Draw from discard pile" aria-disabled="true"></div>
         </div>
 
         <div class="hand-row">
@@ -152,6 +153,17 @@
           <label><input type="radio" name="theme" value="light" /><span>light</span></label>
           <label><input type="radio" name="theme" value="dark" /><span>dark</span></label>
         </div>
+      </div>
+
+      <div id="keyboardSetting" class="setting desktop-only-setting" hidden>
+        <label class="setting-toggle" for="keyboardControlsToggle">
+          <span class="setting-copy">
+            <span id="keyboardControlsLabel" class="setting-label">keyboard controls</span>
+            <span id="keyboardControlsHelp" class="setting-note">Use arrow keys to move between cards, piles, and actions. Press Enter or Space to choose, and Tab for menus.</span>
+          </span>
+          <input id="keyboardControlsToggle" type="checkbox" role="switch" aria-labelledby="keyboardControlsLabel" aria-describedby="keyboardControlsHelp" />
+          <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+        </label>
       </div>
     </div>
   </dialog>

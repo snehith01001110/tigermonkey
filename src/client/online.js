@@ -206,6 +206,7 @@ function renderEmptyTable() {
   els.actions.innerHTML = "";
   els.deck.disabled = true;
   els.discard.classList.add("empty");
+  els.discard.setAttribute("aria-disabled", "true");
 }
 
 function renderHands() {
@@ -300,6 +301,7 @@ function renderDock() {
   els.deck.disabled = !canDraw;
   els.deck.classList.toggle("ready", canDraw);
   els.discard.classList.toggle("ready", canDraw && state.discard.length > 0);
+  els.discard.setAttribute("aria-disabled", String(!(canDraw && state.discard.length > 0)));
 
   els.actions.innerHTML = "";
   for (const [label, action, primary] of availableActions()) {
@@ -340,9 +342,9 @@ function statusMessage() {
   if (state.currentPlayerId !== state.youId) return `${opponent?.name || "Your opponent"} is taking their turn.`;
 
   switch (state.phase) {
-    case "await-draw": return "Tap the deck or the discard to draw.";
-    case "drawn": return `You drew ${prettyCard(state.drawn)}. Tap one of your cards to swap it in, or discard it.`;
-    case "choose-replace": return `You took ${prettyCard(state.drawn)}. Tap one of your cards to swap it in.`;
+    case "await-draw": return "Draw from the deck or the discard.";
+    case "drawn": return `You drew ${prettyCard(state.drawn)}. Choose one of your cards to swap it in, or discard it.`;
+    case "choose-replace": return `You took ${prettyCard(state.drawn)}. Choose one of your cards to swap it in.`;
     case "match-mode": return "Choose the face-down card you think matches the top discard.";
     case "power-peek-own": return "Choose one of your cards to peek at.";
     case "power-peek-opponent": return "Choose one opponent card to peek at.";
