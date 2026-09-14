@@ -1,12 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Queen of hearts playing card">
-  <rect x="7" y="2" width="50" height="60" rx="7" fill="#fffdf8" stroke="#171714" stroke-width="3"/>
-  <g fill="#bc3b31">
-    <text x="12" y="20" font-family="Georgia, serif" font-size="17" font-weight="700">Q</text>
-    <path d="M18 24c-4-5-10 1 0 8 10-7 4-13 0-8z"/>
-    <path d="M32 22c-8-10-22 2 0 20 22-18 8-30 0-20z"/>
-    <g transform="rotate(180 32 32)">
-      <text x="12" y="20" font-family="Georgia, serif" font-size="17" font-weight="700">Q</text>
-      <path d="M18 24c-4-5-10 1 0 8 10-7 4-13 0-8z"/>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Queen of Hearts</title>
+  <rect x="3" y="3" width="58" height="58" rx="16" fill="#171714"/>
+  <path d="M32 53C28 49 11 39 11 26c0-8 5-13 13-13 4 0 7 2 8 5 2-3 5-5 8-5 8 0 13 5 13 13 0 13-17 23-21 27Z" fill="#bc3b31"/>
+  <path d="m20 25 5-7 7 6 7-6 5 7-2 9H22l-2-9Zm4 11h16v4H24z" fill="#fffdf8"/>
 </svg>
