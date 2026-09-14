@@ -14,9 +14,28 @@
   <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
-  <main class="app">
-    <header class="topbar">
+  <main id="gameHome" class="game-home" hidden>
+    <header class="home-header">
       <a class="brand" href="/" aria-label="TigerMonkey home">tigermonkey</a>
+    </header>
+    <section class="game-library" aria-labelledby="gameLibraryTitle">
+      <h1 id="gameLibraryTitle">games</h1>
+      <div id="gameGrid" class="game-grid"></div>
+    </section>
+  </main>
+
+  <main id="gameApp" class="app">
+    <header class="topbar">
+      <div class="brand-group">
+        <a class="brand" href="/" aria-label="TigerMonkey home">tigermonkey</a>
+        <div id="gamePicker" class="game-picker">
+          <button id="gameMenuButton" class="game-menu-button" type="button" aria-haspopup="menu" aria-expanded="false">
+            <span id="currentGameLabel"></span>
+            <span class="game-menu-chevron" aria-hidden="true"></span>
+          </button>
+          <div id="gameMenu" class="game-menu" role="menu" aria-label="Choose game" hidden></div>
+        </div>
+      </div>
       <div class="top-actions">
         <button id="multiplayerBtn" class="text-button" type="button">multiplayer</button>
         <button id="historyBtn" class="text-button history-toggle" type="button">history</button>
@@ -37,7 +56,7 @@
         <ol id="historyList" class="history-list"></ol>
       </aside>
 
-      <section class="table" aria-label="Cabo table">
+      <section class="table" aria-label="Card table">
         <div class="hand-row">
           <div id="aiHand" class="hand ai-hand" aria-label="Computer's cards"></div>
           <div id="aiTally" class="tally" hidden>
@@ -78,19 +97,32 @@
   <dialog id="rulesDialog" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>cabo</h2>
+        <h2 id="rulesTitle">cabo</h2>
         <button id="closeRulesBtn" class="icon-button" type="button" aria-label="Close rules">×</button>
       </div>
-      <p>Get the lowest score. You start with four face-down cards and may only see the bottom two.</p>
-      <div class="rules-grid">
-        <div><strong>7–8</strong><span>peek at one of yours</span></div>
-        <div><strong>9–10</strong><span>peek at one of theirs</span></div>
-        <div><strong>J</strong><span>blind swap</span></div>
-        <div><strong>Q</strong><span>swap, then check what you got</span></div>
-        <div><strong>K</strong><span>check theirs, then choose whether to swap</span></div>
+      <div data-rules-for="cabo">
+        <p>Get the lowest score. You start with four face-down cards and may only see the bottom two.</p>
+        <div class="rules-grid">
+          <div><strong>7–8</strong><span>peek at one of yours</span></div>
+          <div><strong>9–10</strong><span>peek at one of theirs</span></div>
+          <div><strong>J</strong><span>blind swap</span></div>
+          <div><strong>Q</strong><span>swap, then check what you got</span></div>
+          <div><strong>K</strong><span>check theirs, then choose whether to swap</span></div>
+        </div>
+        <p class="small">Powers only trigger when the card is drawn from the deck and discarded. Red kings are −1. Jokers are 0. If you think one of your face-down cards matches the top discard, use <em>match discard</em>. The card leaves an empty spot behind, so the rest of your hand never moves. A wrong match adds a penalty card, which fills an empty spot first.</p>
+        <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table, each card marked with what it was worth.</p>
       </div>
-      <p class="small">Powers only trigger when the card is drawn from the deck and discarded. Red kings are −1. Jokers are 0. If you think one of your face-down cards matches the top discard, use <em>match discard</em>. The card leaves an empty spot behind, so the rest of your hand never moves. A wrong match adds a penalty card, which fills an empty spot first.</p>
-      <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table, each card marked with what it was worth.</p>
+      <div data-rules-for="yaniv" hidden>
+        <p>Empty your hand quickly, or call Yaniv when your cards total 5 or less. Lowest match score wins.</p>
+        <div class="rules-grid">
+          <div><strong>single</strong><span>play any one card</span></div>
+          <div><strong>set</strong><span>play two or more cards of one rank</span></div>
+          <div><strong>run</strong><span>play three or more consecutive cards of one suit</span></div>
+          <div><strong>joker</strong><span>worth 0 and wild in a set or run</span></div>
+        </div>
+        <p class="small">Select a valid play, put it down, then draw one card from the deck or the top of the previous discard. Aces are 1, number cards keep their value, and face cards are 10.</p>
+        <p class="small">If the other player has the same or a lower hand when you call Yaniv, they call Assaf: they score 0 and you add your hand plus a 30-point penalty. Rounds continue until someone reaches 200; the lower total wins.</p>
+      </div>
     </div>
   </dialog>
 

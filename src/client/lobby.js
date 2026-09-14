@@ -1,4 +1,5 @@
 import {
+  gameTypeFromUrl,
   loadCredential,
   multiplayerApiBase,
   normalizeRoomCode,
@@ -25,10 +26,12 @@ let initialized = false;
 let buttonAttached = false;
 let inviteCode = "";
 let joinedCallback = null;
+let activeGameType = gameTypeFromUrl();
 
-export function setupLobby({ roomCode = "", autoOpen = false, onJoined = null, attachButton = true } = {}) {
+export function setupLobby({ roomCode = "", gameType = gameTypeFromUrl(), autoOpen = false, onJoined = null, attachButton = true } = {}) {
   inviteCode = normalizeRoomCode(roomCode);
   joinedCallback = onJoined;
+  activeGameType = gameType;
 
   if (!initialized) {
     initialized = true;
@@ -110,7 +113,7 @@ async function submit(path, { roomCode = "" }) {
     const response = await fetch(`${apiBase}${path}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, gameType: "cabo" }),
+      body: JSON.stringify({ name, gameType: activeGameType }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Could not reach that room.");
@@ -119,6 +122,7 @@ async function submit(path, { roomCode = "" }) {
       playerId: result.playerId,
       token: result.token,
       name,
+      gameType: result.summary?.gameType || activeGameType,
     };
     saveCredential(credential);
     finish(credential);
@@ -131,11 +135,11 @@ async function submit(path, { roomCode = "" }) {
 
 function finish(credential) {
   if (joinedCallback) joinedCallback(credential);
-  else location.assign(roomUrl(credential.roomCode));
+  else location.assign(roomUrl(credential.roomCode, credential.gameType || activeGameType));
 }
 
 async function copyInvite() {
-  const text = roomUrl(inviteCode);
+  const text = roomUrl(inviteCode, activeGameType);
   try {
     await navigator.clipboard.writeText(text);
     els.copy.textContent = "link copied";

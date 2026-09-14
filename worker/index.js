@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 
-import { GameRuleError } from "../src/shared/games/cabo.js";
+import { GameRuleError } from "../src/shared/games/errors.js";
 import { getGameModule, supportedGameTypes } from "../src/shared/games/registry.js";
 
 const ROOM_CODE_LENGTH = 6;

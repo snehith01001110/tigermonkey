@@ -1,4 +1,5 @@
 import * as cabo from "./cabo.js";
+import * as yaniv from "./yaniv.js";
 
 const games = new Map([
   [
@@ -8,6 +9,15 @@ const games = new Map([
       addPlayer: cabo.addPlayer,
       applyAction: cabo.applyAction,
       viewForPlayer: cabo.viewForPlayer,
+    },
+  ],
+  [
+    yaniv.YANIV_GAME_TYPE,
+    {
+      create: yaniv.createGame,
+      addPlayer: yaniv.addPlayer,
+      applyAction: yaniv.applyAction,
+      viewForPlayer: yaniv.viewForPlayer,
     },
   ],
 ]);

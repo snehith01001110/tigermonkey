@@ -1,15 +1,11 @@
+import { GameRuleError } from "./errors.js";
+
+export { GameRuleError } from "./errors.js";
+
 export const CABO_GAME_TYPE = "cabo";
 
 export const SUITS = ["♠", "♥", "♦", "♣"];
 export const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
-
-export class GameRuleError extends Error {
-  constructor(message, code = "invalid_action") {
-    super(message);
-    this.name = "GameRuleError";
-    this.code = code;
-  }
-}
 
 export function makeDeck(idFactory) {
   const cards = [];

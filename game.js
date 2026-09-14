@@ -1,3 +1,6 @@
+import { CARD_MOVE_MS, animateCards, snapshotCards } from "./src/client/card-motion.js";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./src/client/score-motion.js";
+
 (() => {
   const SUITS = ["♠", "♥", "♦", "♣"];
   const RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -40,8 +43,7 @@
   let shownHistory = null;
   let shownCount = 0;
 
-  const MOVE_MS = 460;
-  const COUNT_MS = 520;
+  const MOVE_MS = CARD_MOVE_MS;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const POWER_LABELS = {
     "peek-own": "peek yours",
@@ -197,66 +199,6 @@
     animateCards(before);
   }
 
-  function snapshotCards() {
-    const snap = new Map();
-    for (const el of document.querySelectorAll(".card[data-card-id]")) {
-      snap.set(el.dataset.cardId, {
-        rect: el.getBoundingClientRect(),
-        width: el.offsetWidth,
-        faceUp: el.classList.contains("face-up"),
-      });
-    }
-    return snap;
-  }
-
-  // Every render rebuilds the cards from state (FLIP): slide each card from where it
-  // was — or from the deck, if it just appeared — to where it is now, flipping it
-  // over if its face changed. New cards are dealt one after another.
-  function animateCards(before) {
-    if (reduceMotion.matches) return;
-    const deckRect = (els.deckStack.lastElementChild || els.deck).getBoundingClientRect();
-    const fromDeck = { rect: deckRect, width: deckRect.width, faceUp: false };
-    const dealt = [];
-
-    for (const el of document.querySelectorAll(".card[data-card-id]")) {
-      const prev = before.get(el.dataset.cardId);
-      if (prev) animateCard(el, prev, 0);
-      else if (!el.dataset.under) dealt.push(el); // uncovered discards were already there
-    }
-    dealt
-      .sort((a, b) => Number(a.dataset.deal || 0) - Number(b.dataset.deal || 0))
-      .forEach((el, i) => animateCard(el, fromDeck, i * 90));
-  }
-
-  function animateCard(el, from, delay) {
-    const to = el.getBoundingClientRect();
-    const dx = from.rect.left + from.rect.width / 2 - (to.left + to.width / 2);
-    const dy = from.rect.top + from.rect.height / 2 - (to.top + to.height / 2);
-    const scale = from.width / el.offsetWidth;
-    const timing = { duration: MOVE_MS, delay, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "backwards" };
-
-    if (Math.abs(dx) + Math.abs(dy) > 1 || Math.abs(scale - 1) > 0.01) {
-      el.style.zIndex = "10";
-      const lift = ((scale + 1) / 2) * 1.06;
-      el.animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
-          { transform: `translate(${dx / 2}px, ${dy / 2}px) scale(${lift})`, offset: 0.5 },
-          { transform: "translate(0, 0) scale(1)" },
-        ],
-        { ...timing, composite: "add" },
-      ).finished.then(() => { el.style.zIndex = ""; }, () => {});
-    }
-
-    const faceUp = el.classList.contains("face-up");
-    if (faceUp !== from.faceUp) {
-      el.querySelector(".card-inner").animate(
-        [{ transform: `rotateY(${from.faceUp ? 180 : 0}deg)` }, { transform: `rotateY(${faceUp ? 180 : 0}deg)` }],
-        timing,
-      );
-    }
-  }
-
   function renderHands() {
     renderHand(els.playerHand, state.player, "player");
     renderHand(els.aiHand, state.ai, "ai");
@@ -274,26 +216,12 @@
       const faceUp = state.gameOver || reveal.has(index);
       const el = cardElement(card, { faceUp, index, owner, selectable: canSelectCard(owner, index) });
       el.dataset.deal = String(index * 2 + (owner === "ai" ? 1 : 0));
-      if (index < state.counted[owner]) el.appendChild(valueBadge(score(card)));
+      if (index < state.counted[owner]) el.appendChild(scoreValueBadge(score(card)));
       if (selected === index) el.classList.add("selected");
       if (state.lifted.has(`${owner}:${index}`)) el.classList.add("lifted");
       el.addEventListener("click", () => handleCardClick(owner, index));
       container.appendChild(el);
     });
-  }
-
-  // Once a card has been counted its value stays on it, so at the end of the round you can
-  // read what every card in both hands was worth.
-  function valueBadge(value) {
-    const badge = document.createElement("span");
-    badge.className = "card-value";
-    badge.textContent = points(value);
-    badge.setAttribute("aria-label", `worth ${value}`);
-    return badge;
-  }
-
-  function points(value) {
-    return value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
   }
 
   // The spot a discarded card left behind: it holds the grid open so nothing shifts.
@@ -1200,76 +1128,33 @@
   async function countUp() {
     showTally(els.playerTally, "you");
     showTally(els.aiTally, "computer");
-    if (reduceMotion.matches) return settleCount();
-    await pause(MOVE_MS + 240); // let the cards finish turning over first
-    for (const owner of ["player", "ai"]) {
-      if (state.phase !== "counting") return;
-      await countHand(owner);
-      await pause(300);
-    }
-    settleCount();
-  }
-
-  async function countHand(owner) {
-    const hand = owner === "player" ? state.player : state.ai;
-    const container = owner === "player" ? els.playerHand : els.aiHand;
-    const tally = owner === "player" ? els.playerTally : els.aiTally;
-    container.classList.add("tallying");
-    tally.classList.add("active");
-    let running = 0;
-    for (let i = 0; i < hand.length; i++) {
-      if (state.phase !== "counting") return; // skipped
-      if (!hand[i]) continue;
-      const value = score(hand[i]);
-      running += value;
-      state.counted[owner] = i + 1;
-      countCard(container.children[i], value);
-      setTally(tally, running);
-      await pause(COUNT_MS);
-    }
-    if (state.phase !== "counting") return;
-    container.classList.remove("tallying");
-    tally.classList.remove("active");
-  }
-
-  // One card joins the total: it lifts out of the dimmed hand and floats its value up.
-  function countCard(el, value) {
-    if (!el) return;
-    el.classList.add("counting");
-    el.appendChild(valueBadge(value));
-    later(() => {
-      el.classList.remove("counting");
-      el.classList.add("counted");
-    }, 300);
-
-    const chip = document.createElement("span");
-    chip.className = "count-chip";
-    chip.textContent = points(value);
-    el.appendChild(chip);
-    if (reduceMotion.matches) {
-      later(() => chip.remove(), 700);
-      return;
-    }
-    chip
-      .animate(
-        [
-          { transform: "translate(-50%, 6px)", opacity: 0 },
-          { transform: "translate(-50%, -6px)", opacity: 1, offset: 0.3 },
-          { transform: "translate(-50%, -24px)", opacity: 0 },
-        ],
-        { duration: 900, easing: "cubic-bezier(.2, .75, .25, 1)" },
-      )
-      .finished.then(() => chip.remove(), () => chip.remove());
+    const complete = await runScoreCount({
+      hands: [
+        { owner: "player", cards: state.player, container: els.playerHand, tally: els.playerTally },
+        { owner: "ai", cards: state.ai, container: els.aiHand, tally: els.aiTally },
+      ],
+      shouldContinue: () => state.phase === "counting",
+      onHandStart: ({ container, tally }) => {
+        container.classList.add("tallying");
+        tally.classList.add("active");
+      },
+      onCard: ({ owner, container, tally }, card, index) => {
+        const value = score(card);
+        const running = (Number(tally.querySelector(".tally-total").textContent) || 0) + value;
+        state.counted[owner] = index + 1;
+        revealScoreCard(container.children[index], value);
+        setTally(tally, running);
+      },
+      onHandEnd: ({ container, tally }) => {
+        container.classList.remove("tallying");
+        tally.classList.remove("active");
+      },
+    });
+    if (complete) settleCount();
   }
 
   function setTally(tally, value) {
-    const total = tally.querySelector(".tally-total");
-    total.textContent = String(value);
-    if (reduceMotion.matches) return;
-    total.animate(
-      [{ transform: "scale(1)" }, { transform: "scale(1.24)" }, { transform: "scale(1)" }],
-      { duration: 320, easing: "ease-out" },
-    );
+    setTallyValue(tally, value);
   }
 
   function showTally(tally, name) {
@@ -1295,7 +1180,7 @@
       [...container.children].forEach((card, i) => {
         card.classList.remove("counting");
         card.classList.add("counted");
-        if (hand[i] && !card.querySelector(".card-value")) card.appendChild(valueBadge(score(hand[i])));
+        if (hand[i] && !card.querySelector(".card-value")) card.appendChild(scoreValueBadge(score(hand[i])));
       });
       tally.classList.remove("active");
       setTally(tally, total);

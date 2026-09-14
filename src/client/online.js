@@ -1,9 +1,10 @@
 import { prettyCard, powerFor, scoreCard } from "../shared/games/cabo.js";
-import { loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
+import { CARD_MOVE_MS, animateCards, snapshotCards } from "./card-motion.js";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./score-motion.js";
+import { gameUrl, loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
 import { closeLobby, setupLobby, showWaitingRoom } from "./lobby.js";
 
-const MOVE_MS = 460;
-const COUNT_MS = 520;
+const MOVE_MS = CARD_MOVE_MS;
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const POWER_LABELS = {
   "peek-own": "peek yours",
@@ -145,6 +146,10 @@ function connect() {
     try {
       const payload = JSON.parse(event.data);
       if (payload.type === "state") {
+        if (payload.state.gameType !== "cabo") {
+          location.replace(roomUrl(roomCode, payload.state.gameType));
+          return;
+        }
         state = payload.state;
         connectedPlayerIds = payload.connectedPlayerIds || [];
         actionPending = false;
@@ -233,20 +238,6 @@ function renderHand(container, hand, owner) {
     cardButton.addEventListener("click", () => handleCardClick(owner, index));
     container.appendChild(cardButton);
   });
-}
-
-// Once a card has been counted its value stays on it, so at the end of the round both
-// players can read what every card in both hands was worth.
-function valueBadge(value) {
-  const badge = document.createElement("span");
-  badge.className = "card-value";
-  badge.textContent = points(value);
-  badge.setAttribute("aria-label", `worth ${value}`);
-  return badge;
-}
-
-function points(value) {
-  return value > 0 ? `+${value}` : value < 0 ? `−${Math.abs(value)}` : "0";
 }
 
 // The spot a discarded card left behind: it holds the grid open so nothing shifts.
@@ -454,70 +445,31 @@ async function runCountUp(token) {
   showTally(els.aiTally, otherPlayer()?.name || "opponent");
   renderDock();
 
-  if (!reduceMotion.matches) {
-    await wait(MOVE_MS + 240); // let the cards finish turning over first
-    for (const side of ["player", "opponent"]) {
-      if (token !== countToken) return;
-      await countHand(side, token);
-      if (token !== countToken) return;
-      await wait(300);
-    }
-  }
-  if (token !== countToken) return;
-  settleCountUp();
-}
-
-async function countHand(side, token) {
-  const hand = handFor(side);
-  const container = side === "player" ? els.playerHand : els.aiHand;
-  const tally = side === "player" ? els.playerTally : els.aiTally;
-  countProgress.active = side;
-  container.classList.add("tallying");
-  tally.classList.add("active");
-  let running = 0;
-  for (let index = 0; index < hand.length; index += 1) {
-    if (!hand[index]) continue;
-    const value = valueOf(hand[index]);
-    running += value;
-    countCard(container.children[index], value);
-    countProgress[side] = index + 1;
-    setTally(tally, running);
-    await wait(COUNT_MS);
-    if (token !== countToken) return; // skipped, or a new round started
-  }
-  countProgress.active = null;
-  container.classList.remove("tallying");
-  tally.classList.remove("active");
-}
-
-// One card joins the total: it lifts out of the dimmed hand and floats its value up.
-function countCard(element, value) {
-  if (!element) return;
-  element.classList.add("counting");
-  element.appendChild(valueBadge(value));
-  setTimeout(() => {
-    element.classList.remove("counting");
-    element.classList.add("counted");
-  }, 300);
-
-  const chip = document.createElement("span");
-  chip.className = "count-chip";
-  chip.textContent = points(value);
-  element.appendChild(chip);
-  if (reduceMotion.matches) {
-    setTimeout(() => chip.remove(), 700);
-    return;
-  }
-  chip
-    .animate(
-      [
-        { transform: "translate(-50%, 6px)", opacity: 0 },
-        { transform: "translate(-50%, -6px)", opacity: 1, offset: 0.3 },
-        { transform: "translate(-50%, -24px)", opacity: 0 },
-      ],
-      { duration: 900, easing: "cubic-bezier(.2, .75, .25, 1)" },
-    )
-    .finished.then(() => chip.remove(), () => chip.remove());
+  const complete = await runScoreCount({
+    hands: [
+      { side: "player", cards: handFor("player"), container: els.playerHand, tally: els.playerTally },
+      { side: "opponent", cards: handFor("opponent"), container: els.aiHand, tally: els.aiTally },
+    ],
+    shouldContinue: () => token === countToken,
+    onHandStart: ({ side, container, tally }) => {
+      countProgress.active = side;
+      container.classList.add("tallying");
+      tally.classList.add("active");
+    },
+    onCard: ({ side, container, tally }, card, index) => {
+      const value = valueOf(card);
+      const running = (Number(tally.querySelector(".tally-total").textContent) || 0) + value;
+      revealScoreCard(container.children[index], value);
+      countProgress[side] = index + 1;
+      setTally(tally, running);
+    },
+    onHandEnd: ({ container, tally }) => {
+      countProgress.active = null;
+      container.classList.remove("tallying");
+      tally.classList.remove("active");
+    },
+  });
+  if (complete && token === countToken) settleCountUp();
 }
 
 // Both totals land, the winner is marked, and the table stays exactly as it is.
@@ -563,7 +515,7 @@ function repaintCountUp() {
       const counted = index < countProgress[side];
       card.classList.toggle("counted", counted);
       const badge = card.querySelector(".card-value");
-      if (counted && hand[index] && !badge) card.appendChild(valueBadge(valueOf(hand[index])));
+      if (counted && hand[index] && !badge) card.appendChild(scoreValueBadge(valueOf(hand[index])));
       else if (!counted && badge) badge.remove();
     });
   }
@@ -591,13 +543,7 @@ function showTally(tally, name) {
 }
 
 function setTally(tally, value) {
-  const total = tally.querySelector(".tally-total");
-  total.textContent = String(value);
-  if (reduceMotion.matches) return;
-  total.animate(
-    [{ transform: "scale(1)" }, { transform: "scale(1.24)" }, { transform: "scale(1)" }],
-    { duration: 320, easing: "ease-out" },
-  );
+  setTallyValue(tally, value);
 }
 
 function handFor(side) {
@@ -663,60 +609,6 @@ function cardElement(card, { faceUp = false, index = null, owner = null, selecta
   return button;
 }
 
-function snapshotCards() {
-  const snapshot = new Map();
-  for (const element of document.querySelectorAll(".card[data-card-id]")) {
-    snapshot.set(element.dataset.cardId, {
-      rect: element.getBoundingClientRect(),
-      width: element.offsetWidth,
-      faceUp: element.classList.contains("face-up"),
-    });
-  }
-  return snapshot;
-}
-
-function animateCards(before) {
-  if (reduceMotion.matches) return;
-  const deckRect = (els.deckStack.lastElementChild || els.deck).getBoundingClientRect();
-  const fromDeck = { rect: deckRect, width: deckRect.width, faceUp: false };
-  const dealt = [];
-  for (const element of document.querySelectorAll(".card[data-card-id]")) {
-    const previous = before.get(element.dataset.cardId);
-    if (previous) animateCard(element, previous, 0);
-    else if (!element.dataset.under) dealt.push(element);
-  }
-  dealt
-    .sort((a, b) => Number(a.dataset.deal || 0) - Number(b.dataset.deal || 0))
-    .forEach((element, index) => animateCard(element, fromDeck, index * 90));
-}
-
-function animateCard(element, from, delay) {
-  const to = element.getBoundingClientRect();
-  const dx = from.rect.left + from.rect.width / 2 - (to.left + to.width / 2);
-  const dy = from.rect.top + from.rect.height / 2 - (to.top + to.height / 2);
-  const scale = from.width / element.offsetWidth;
-  const timing = { duration: MOVE_MS, delay, easing: "cubic-bezier(.2, .75, .25, 1)", fill: "backwards" };
-  if (Math.abs(dx) + Math.abs(dy) > 1 || Math.abs(scale - 1) > 0.01) {
-    element.style.zIndex = "10";
-    const lift = ((scale + 1) / 2) * 1.06;
-    element.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
-        { transform: `translate(${dx / 2}px, ${dy / 2}px) scale(${lift})`, offset: 0.5 },
-        { transform: "translate(0, 0) scale(1)" },
-      ],
-      { ...timing, composite: "add" },
-    ).finished.then(() => { element.style.zIndex = ""; }, () => {});
-  }
-  const faceUp = element.classList.contains("face-up");
-  if (faceUp !== from.faceUp) {
-    element.querySelector(".card-inner").animate(
-      [{ transform: `rotateY(${from.faceUp ? 180 : 0}deg)` }, { transform: `rotateY(${faceUp ? 180 : 0}deg)` }],
-      timing,
-    );
-  }
-}
-
 function tilt(card) {
   let hash = 0;
   for (const character of card.id) hash = (hash * 31 + character.charCodeAt(0)) | 0;
@@ -727,10 +619,7 @@ function leaveGame() {
   leaving = true;
   clearTimeout(reconnectTimer);
   if (socket) socket.close(1000, "Left game");
-  const url = new URL(location.href);
-  url.search = "";
-  url.hash = "";
-  location.assign(url);
+  location.assign(gameUrl("cabo"));
 }
 
 function openSettings() {

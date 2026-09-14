@@ -6,8 +6,9 @@ const TARGET_SELECTOR = [
   "#actions button:not(:disabled)",
 ].join(", ");
 
-const EXTRA_CARD_KEYS = ["9", "0", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "f", "g", "h", "j", "l", "z", "v", "b", "n"];
-const PLAYER_CARD_KEYS = ["1", "2", "3", "4", ...EXTRA_CARD_KEYS];
+const EXTRA_CARD_KEYS = ["9", "0", "q", "w", "e", "r", "t", "u", "i", "o", "p", "a", "f", "g", "h", "j", "l", "z", "v", "b", "n"];
+const CABO_PLAYER_CARD_KEYS = ["1", "2", "3", "4", ...EXTRA_CARD_KEYS];
+const YANIV_PLAYER_CARD_KEYS = ["1", "2", "3", "4", "5"];
 const OPPONENT_CARD_KEYS = ["5", "6", "7", "8", ...EXTRA_CARD_KEYS];
 
 export function setupKeyboardControls() {
@@ -123,6 +124,7 @@ function shortcutForElement(target) {
     owner: target.dataset.owner,
     index: target.dataset.index,
     label: labelWithoutHint(target),
+    gameType: document.body.dataset.game,
   });
 }
 
@@ -134,18 +136,22 @@ function labelWithoutHint(target) {
     .trim();
 }
 
-export function shortcutForDescriptor({ id = "", owner = "", index = -1, label = "" } = {}) {
+export function shortcutForDescriptor({ id = "", owner = "", index = -1, label = "", gameType = "cabo" } = {}) {
   if (id === "deck") return shortcut("d");
   if (id === "discard") return shortcut("x");
 
   const cardIndex = Number(index);
-  if (owner === "player" && Number.isInteger(cardIndex)) return shortcut(PLAYER_CARD_KEYS[cardIndex]);
+  if (owner === "player" && Number.isInteger(cardIndex)) {
+    const keys = gameType === "yaniv" ? YANIV_PLAYER_CARD_KEYS : CABO_PLAYER_CARD_KEYS;
+    return shortcut(keys[cardIndex]);
+  }
   if ((owner === "ai" || owner === "opponent") && Number.isInteger(cardIndex)) return shortcut(OPPONENT_CARD_KEYS[cardIndex]);
 
   const action = label.toLowerCase();
-  if (action === "got it" || action === "play again") return shortcut("enter");
+  if (action === "got it" || action === "play again" || action === "play cards" || action === "next round") return shortcut("enter");
   if (action === "match discard") return shortcut("m");
   if (action === "call cabo") return shortcut("c");
+  if (action === "call yaniv") return shortcut("y");
   if (action.startsWith("discard")) return shortcut("x");
   if (action === "cancel") return shortcut("escape");
   if (action === "keep hands") return shortcut("k");
