@@ -6,6 +6,10 @@ const TARGET_SELECTOR = [
   "#actions button:not(:disabled)",
 ].join(", ");
 
+const EXTRA_CARD_KEYS = ["9", "0", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "a", "f", "g", "h", "j", "l", "z", "v", "b", "n"];
+const PLAYER_CARD_KEYS = ["1", "2", "3", "4", ...EXTRA_CARD_KEYS];
+const OPPONENT_CARD_KEYS = ["5", "6", "7", "8", ...EXTRA_CARD_KEYS];
+
 export function setupKeyboardControls() {
   const setting = document.getElementById("keyboardSetting");
   const toggle = document.getElementById("keyboardControlsToggle");
@@ -14,7 +18,6 @@ export function setupKeyboardControls() {
 
   let preferred = loadPreference();
   let enabled = false;
-  let lastTargetKey = "";
   let updateQueued = false;
 
   function applyMode() {
@@ -22,46 +25,16 @@ export function setupKeyboardControls() {
     toggle.checked = preferred;
     enabled = desktopQuery.matches && preferred;
     document.documentElement.toggleAttribute("data-keyboard-controls", enabled);
-    updateTargets();
+    refreshShortcutHints(enabled);
   }
 
-  function updateTargets() {
-    for (const target of document.querySelectorAll(".keyboard-target")) {
-      target.classList.remove("keyboard-target");
-      if (target.dataset.keyboardTabindex !== undefined) {
-        const previous = target.dataset.keyboardTabindex;
-        if (previous) target.setAttribute("tabindex", previous);
-        else target.removeAttribute("tabindex");
-        delete target.dataset.keyboardTabindex;
-      }
-    }
-    if (!enabled) return;
-
-    for (const target of gameTargets()) {
-      target.classList.add("keyboard-target");
-      if (!(target instanceof HTMLButtonElement)) {
-        target.dataset.keyboardTabindex = target.getAttribute("tabindex") || "";
-        target.tabIndex = 0;
-      }
-    }
-  }
-
-  function queueTargetUpdate() {
+  function queueHintUpdate() {
     if (updateQueued) return;
     updateQueued = true;
     queueMicrotask(() => {
       updateQueued = false;
-      updateTargets();
-      restoreGameFocus();
+      refreshShortcutHints(enabled);
     });
-  }
-
-  function restoreGameFocus() {
-    if (!enabled || document.querySelector("dialog[open]") || document.activeElement !== document.body) return;
-    const targets = gameTargets();
-    if (!targets.length) return;
-    const previous = targets.find((target) => targetKey(target) === lastTargetKey);
-    focusTarget(previous || targets[0]);
   }
 
   toggle.addEventListener("change", () => {
@@ -72,46 +45,68 @@ export function setupKeyboardControls() {
 
   desktopQuery.addEventListener("change", applyMode);
 
-  document.addEventListener("focusin", (event) => {
-    if (event.target instanceof Element && event.target.matches(TARGET_SELECTOR)) {
-      lastTargetKey = targetKey(event.target);
-    }
-  });
-
   document.addEventListener("keydown", (event) => {
-    if (!enabled || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+    if (!enabled || event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
     if (event.target instanceof Element && event.target.closest("dialog, input, textarea, select, [contenteditable='true']")) return;
 
-    const targets = gameTargets();
-    const current = event.target instanceof Element && event.target.matches(TARGET_SELECTOR) ? event.target : null;
+    const key = eventShortcutKey(event);
+    if (!key) return;
+    const target = gameTargets().find((candidate) => shortcutForElement(candidate)?.key === key);
+    if (!target) return;
 
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-      if (!targets.length) return;
-      event.preventDefault();
-      focusTarget(current ? directionalTarget(targets, current, event.key) : targets[0]);
-      return;
-    }
-
-    if ((event.key === "Enter" || event.key === " ") && current?.id === "discard") {
-      event.preventDefault();
-      current.click();
-    }
+    event.preventDefault();
+    target.click();
   });
 
-  document.getElementById("settingsDialog")?.addEventListener("close", () => {
-    if (!enabled) return;
-    queueMicrotask(() => {
-      const targets = gameTargets();
-      if (targets.length) focusTarget(targets.find((target) => targetKey(target) === lastTargetKey) || targets[0]);
-    });
-  });
+  // Capture the activation before the game rerenders and removes the pressed control.
+  document.addEventListener("click", (event) => {
+    if (!enabled || !(event.target instanceof Element)) return;
+    const target = event.target.closest("[data-keyboard-shortcut]");
+    if (target) flashShortcut(target);
+  }, true);
 
-  new MutationObserver(queueTargetUpdate).observe(document.querySelector(".app") || document.body, {
+  new MutationObserver(queueHintUpdate).observe(document.querySelector(".app") || document.body, {
     childList: true,
     subtree: true,
   });
 
   applyMode();
+}
+
+function refreshShortcutHints(enabled) {
+  for (const target of document.querySelectorAll("[data-keyboard-shortcut]")) {
+    const shortcut = enabled && target.matches(TARGET_SELECTOR) ? shortcutForElement(target) : null;
+    if (!shortcut || shortcut.key !== target.dataset.keyboardShortcut) clearShortcut(target);
+  }
+  if (!enabled) return;
+
+  for (const target of gameTargets()) {
+    const shortcut = shortcutForElement(target);
+    if (!shortcut) continue;
+    target.dataset.keyboardShortcut = shortcut.key;
+    target.setAttribute("aria-keyshortcuts", shortcut.aria);
+    target.classList.add("shortcut-host");
+
+    let hint = directHint(target);
+    if (!hint) {
+      hint = document.createElement("span");
+      hint.className = "shortcut-hint";
+      hint.setAttribute("aria-hidden", "true");
+      target.appendChild(hint);
+    }
+    if (hint.textContent !== shortcut.display) hint.textContent = shortcut.display;
+  }
+}
+
+function clearShortcut(target) {
+  delete target.dataset.keyboardShortcut;
+  target.removeAttribute("aria-keyshortcuts");
+  target.classList.remove("shortcut-host");
+  directHint(target)?.remove();
+}
+
+function directHint(target) {
+  return [...target.children].find((child) => child.classList.contains("shortcut-hint")) || null;
 }
 
 function gameTargets() {
@@ -122,63 +117,68 @@ function isVisible(element) {
   return element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
 }
 
-function focusTarget(target) {
-  target?.focus({ preventScroll: true });
-}
-
-function targetKey(target) {
-  if (target.id) return target.id;
-  if (target.classList.contains("card")) {
-    return `card:${target.dataset.owner || "pile"}:${target.dataset.index || target.dataset.cardId || "top"}`;
-  }
-  const siblings = target.parentElement ? [...target.parentElement.children] : [];
-  return `action:${siblings.indexOf(target)}:${target.textContent.trim()}`;
-}
-
-function directionalTarget(targets, current, key) {
-  const origin = center(current);
-  const direction = {
-    ArrowUp: [0, -1],
-    ArrowDown: [0, 1],
-    ArrowLeft: [-1, 0],
-    ArrowRight: [1, 0],
-  }[key];
-  const vertical = direction[1] !== 0;
-  let best = null;
-  let bestScore = Infinity;
-
-  for (const candidate of targets) {
-    if (candidate === current) continue;
-    const point = center(candidate);
-    const primary = vertical ? (point.y - origin.y) * direction[1] : (point.x - origin.x) * direction[0];
-    if (primary <= 1) continue;
-    const cross = vertical ? Math.abs(point.x - origin.x) : Math.abs(point.y - origin.y);
-    const score = primary * 4 + cross;
-    if (score < bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-
-  if (best) return best;
-
-  // Wrap to the far edge while staying as close as possible on the other axis.
-  const ordered = targets.filter((target) => target !== current).sort((a, b) => {
-    const aPoint = center(a);
-    const bPoint = center(b);
-    const aPrimary = vertical ? aPoint.y * direction[1] : aPoint.x * direction[0];
-    const bPrimary = vertical ? bPoint.y * direction[1] : bPoint.x * direction[0];
-    if (aPrimary !== bPrimary) return aPrimary - bPrimary;
-    const aCross = vertical ? Math.abs(aPoint.x - origin.x) : Math.abs(aPoint.y - origin.y);
-    const bCross = vertical ? Math.abs(bPoint.x - origin.x) : Math.abs(bPoint.y - origin.y);
-    return aCross - bCross;
+function shortcutForElement(target) {
+  return shortcutForDescriptor({
+    id: target.id,
+    owner: target.dataset.owner,
+    index: target.dataset.index,
+    label: labelWithoutHint(target),
   });
-  return ordered[0] || current;
 }
 
-function center(element) {
-  const rect = element.getBoundingClientRect();
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+function labelWithoutHint(target) {
+  return [...target.childNodes]
+    .filter((node) => !(node instanceof Element && node.classList.contains("shortcut-hint")))
+    .map((node) => node.textContent)
+    .join("")
+    .trim();
+}
+
+export function shortcutForDescriptor({ id = "", owner = "", index = -1, label = "" } = {}) {
+  if (id === "deck") return shortcut("d");
+  if (id === "discard") return shortcut("x");
+
+  const cardIndex = Number(index);
+  if (owner === "player" && Number.isInteger(cardIndex)) return shortcut(PLAYER_CARD_KEYS[cardIndex]);
+  if ((owner === "ai" || owner === "opponent") && Number.isInteger(cardIndex)) return shortcut(OPPONENT_CARD_KEYS[cardIndex]);
+
+  const action = label.toLowerCase();
+  if (action === "got it" || action === "play again") return shortcut("enter");
+  if (action === "match discard") return shortcut("m");
+  if (action === "call cabo") return shortcut("c");
+  if (action.startsWith("discard")) return shortcut("x");
+  if (action === "cancel") return shortcut("escape");
+  if (action === "keep hands") return shortcut("k");
+  if (action === "swap" || action === "skip") return shortcut("s");
+  return null;
+}
+
+function shortcut(key) {
+  if (!key) return null;
+  if (key === "enter") return { key, display: "↵", aria: "Enter" };
+  if (key === "escape") return { key, display: "Esc", aria: "Escape" };
+  return { key, display: key.toUpperCase(), aria: key.toUpperCase() };
+}
+
+function eventShortcutKey(event) {
+  if (event.key === "Enter") return "enter";
+  if (event.key === "Escape") return "escape";
+  return event.key.length === 1 ? event.key.toLowerCase() : "";
+}
+
+function flashShortcut(target) {
+  const hint = directHint(target);
+  if (!hint) return;
+  const rect = hint.getBoundingClientRect();
+  const flash = hint.cloneNode(true);
+  flash.classList.add("shortcut-hint-flash");
+  flash.style.left = `${rect.left}px`;
+  flash.style.top = `${rect.top}px`;
+  flash.style.width = `${rect.width}px`;
+  flash.style.height = `${rect.height}px`;
+  document.body.appendChild(flash);
+  flash.addEventListener("animationend", () => flash.remove(), { once: true });
+  setTimeout(() => flash.remove(), 500);
 }
 
 function loadPreference() {

@@ -679,12 +679,44 @@ button { color: inherit; touch-action: manipulation; }
 .setting-toggle > input:checked + .toggle-track .toggle-thumb { background: var(--bg); transform: translateX(18px); }
 .setting-toggle > input:focus-visible + .toggle-track { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-/* Keyboard mode follows the game's current legal moves and makes the focused one unmistakable. */
-html[data-keyboard-controls] .keyboard-target:focus-visible {
-  outline: 3px solid var(--ink);
-  outline-offset: 5px;
+/* Only currently legal moves receive a compact key badge. */
+.shortcut-host { position: relative; }
+.shortcut-hint {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .16);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
 }
-html[data-keyboard-controls] .card.keyboard-target:focus-visible { transform: translateY(-5px); }
+.actions .shortcut-hint { top: -9px; right: -6px; }
+.shortcut-hint-flash {
+  position: fixed;
+  z-index: 1000;
+  animation: shortcut-flash 320ms var(--ease) forwards;
+}
+@keyframes shortcut-flash {
+  0% { transform: scale(1); opacity: 1; }
+  38% { border-color: var(--red); background: var(--red); color: #fff; box-shadow: 0 0 0 5px rgba(188, 59, 49, .18); transform: scale(1.28); opacity: 1; }
+  100% { border-color: var(--red); background: var(--red); color: #fff; box-shadow: 0 0 0 8px rgba(188, 59, 49, 0); transform: scale(1.08); opacity: 0; }
+}
+@keyframes shortcut-flash-reduced {
+  0%, 70% { border-color: var(--red); background: var(--red); color: #fff; opacity: 1; }
+  100% { border-color: var(--red); background: var(--red); color: #fff; opacity: 0; }
+}
 .inline-link {
   padding: 0;
   border: 0;
@@ -729,6 +761,7 @@ html[data-keyboard-controls] .card.keyboard-target:focus-visible { transform: tr
 @media (prefers-reduced-motion: reduce) {
   .card, .deck-layer { transition: none; }
   .toggle-track, .toggle-thumb { transition: none; }
+  .shortcut-hint-flash { animation: shortcut-flash-reduced 240ms linear forwards; }
   .card-value { animation: none; }
   .tally, .result-line { animation: none; }
   .hand.tallying .card { opacity: 1; }
