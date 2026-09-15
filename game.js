@@ -17,10 +17,6 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
     message: document.getElementById("message"),
     actions: document.getElementById("actions"),
     historyList: document.getElementById("historyList"),
-    historyListModal: document.getElementById("historyListModal"),
-    historyBtn: document.getElementById("historyBtn"),
-    historyDialog: document.getElementById("historyDialog"),
-    closeHistoryBtn: document.getElementById("closeHistoryBtn"),
     themeColor: document.querySelector('meta[name="theme-color"]'),
     settingsBtn: document.getElementById("settingsBtn"),
     settingsDialog: document.getElementById("settingsDialog"),
@@ -356,23 +352,22 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
       else groups.push({ who: entry.who, lines: [{ entry, i }] });
     });
 
-    for (const list of [els.historyList, els.historyListModal]) {
-      list.innerHTML = "";
-      for (const group of groups.slice(-8).reverse()) {
-        const item = document.createElement("li");
-        item.className = "history-group";
-        const who = document.createElement("span");
-        who.className = "history-who";
-        who.textContent = WHO_LABELS[group.who];
-        item.appendChild(who);
-        for (const { entry, i } of group.lines) {
-          const line = document.createElement("span");
-          line.className = i >= firstNew ? "history-line fresh" : "history-line";
-          for (const part of entry.parts) line.appendChild(historyPart(part));
-          item.appendChild(line);
-        }
-        list.appendChild(item);
+    const list = els.historyList;
+    list.innerHTML = "";
+    for (const group of groups.slice(-8).reverse()) {
+      const item = document.createElement("li");
+      item.className = "history-group";
+      const who = document.createElement("span");
+      who.className = "history-who";
+      who.textContent = WHO_LABELS[group.who];
+      item.appendChild(who);
+      for (const { entry, i } of group.lines) {
+        const line = document.createElement("span");
+        line.className = i >= firstNew ? "history-line fresh" : "history-line";
+        for (const part of entry.parts) line.appendChild(historyPart(part));
+        item.appendChild(line);
       }
+      list.appendChild(item);
     }
   }
 
@@ -1263,8 +1258,6 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
   els.discard.addEventListener("click", drawFromDiscard);
   els.rulesBtn.addEventListener("click", () => els.rulesDialog.showModal());
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
-  els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
-  els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   // Settings: the computer's level (used from the next game) and the appearance (used now).
   function openSettings() {
     for (const radio of els.levelRadios) radio.checked = radio.value === level;

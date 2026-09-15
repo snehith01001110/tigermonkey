@@ -317,12 +317,9 @@ button { color: inherit; touch-action: manipulation; }
 .history-line.fresh { animation: history-in 320ms var(--ease); }
 @keyframes history-in { from { opacity: 0; transform: translateY(-4px); } }
 
-.history-toggle { display: none; }
-
 @media (max-width: 860px) {
   .play { grid-template-columns: minmax(0, 1fr); }
   .play::after, .history { display: none; }
-  .history-toggle { display: inline-block; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -872,6 +869,9 @@ body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h)
   .tally-name { font-size: 9px; }
   /* The verdict says "round over" plainly enough on a phone; drop the label it replaces. */
   .status:has(.result-line:not([hidden])) .turn-label { display: none; }
+  /* A phone has no room for a game switcher in the topbar, and the home page,
+     one tap away on the logo, already lists every game. */
+  .game-picker { display: none; }
   .top-actions { gap: 14px; }
   .text-button { padding-block: 10px; }
   #newGameBtn { display: none; }

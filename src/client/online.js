@@ -26,10 +26,6 @@ const els = {
   message: document.getElementById("message"),
   actions: document.getElementById("actions"),
   historyList: document.getElementById("historyList"),
-  historyListModal: document.getElementById("historyListModal"),
-  historyBtn: document.getElementById("historyBtn"),
-  historyDialog: document.getElementById("historyDialog"),
-  closeHistoryBtn: document.getElementById("closeHistoryBtn"),
   multiplayerBtn: document.getElementById("multiplayerBtn"),
   closeMultiplayerBtn: document.getElementById("closeMultiplayerBtn"),
   settingsBtn: document.getElementById("settingsBtn"),
@@ -98,8 +94,6 @@ function configurePage() {
   els.discard.addEventListener("click", () => sendAction({ type: "DRAW_DISCARD" }));
   els.rulesBtn.addEventListener("click", () => els.rulesDialog.showModal());
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
-  els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
-  els.closeHistoryBtn.addEventListener("click", () => els.historyDialog.close());
   els.settingsBtn.addEventListener("click", openSettings);
   els.closeSettingsBtn.addEventListener("click", () => els.settingsDialog.close());
 
@@ -405,20 +399,19 @@ function sendAction(action) {
 
 function renderHistory() {
   const names = Object.fromEntries(state.players.map((candidate) => [candidate.id, candidate.name]));
-  for (const list of [els.historyList, els.historyListModal]) {
-    list.innerHTML = "";
-    for (const entry of state.history.slice(-8).reverse()) {
-      const item = document.createElement("li");
-      item.className = "history-group";
-      const who = document.createElement("span");
-      who.className = "history-who";
-      who.textContent = entry.actorId === "round" ? "round" : names[entry.actorId] || "player";
-      const line = document.createElement("span");
-      line.className = "history-line";
-      line.textContent = entry.text;
-      item.append(who, line);
-      list.appendChild(item);
-    }
+  const list = els.historyList;
+  list.innerHTML = "";
+  for (const entry of state.history.slice(-8).reverse()) {
+    const item = document.createElement("li");
+    item.className = "history-group";
+    const who = document.createElement("span");
+    who.className = "history-who";
+    who.textContent = entry.actorId === "round" ? "round" : names[entry.actorId] || "player";
+    const line = document.createElement("span");
+    line.className = "history-line";
+    line.textContent = entry.text;
+    item.append(who, line);
+    list.appendChild(item);
   }
 }
 
