@@ -3,11 +3,15 @@ import {
   addPlayer,
   applyAction,
   createGame,
-  handValue,
-  isValidMeld,
-  scoreCard,
   viewForPlayer,
 } from "../shared/games/yaniv.js";
+import {
+  chooseComputerDraw,
+  chooseComputerMeld,
+  COMPUTER_LEVELS,
+  isComputerLevel,
+  shouldComputerCallYaniv,
+} from "./yaniv-ai.js";
 import { setupLobby } from "./lobby.js";
 import { createYanivTable } from "./yaniv-ui.js";
 
@@ -17,15 +21,24 @@ const COMPUTER = { id: "local-computer", name: "computer" };
 let game = null;
 let gameToken = 0;
 let ui = null;
+let selectedLevel = savedLevel();
+let activeLevel = selectedLevel;
 
 export function startLocalYaniv() {
-  ui = createYanivTable({ dispatch: playerAction, onNewGame: startGame });
+  ui = createYanivTable({
+    dispatch: playerAction,
+    onNewGame: startGame,
+    getComputerLevel: () => selectedLevel,
+    getActiveComputerLevel: () => activeLevel,
+    onComputerLevelChange: setComputerLevel,
+  });
   setupLobby({ gameType: "yaniv" });
   startGame();
 }
 
 function startGame() {
   gameToken += 1;
+  activeLevel = selectedLevel;
   const tools = randomTools();
   game = createGame({ roomCode: "LOCAL", host: YOU });
   addPlayer(game, COMPUTER, tools);
@@ -55,7 +68,7 @@ function completeReadyPair(actionType) {
 
 function render(message = "") {
   const view = viewForPlayer(game, YOU.id);
-  ui.render(view, message ? { message } : {});
+  ui.render(view, { computerLevel: activeLevel, ...(message ? { message } : {}) });
 }
 
 function queueComputerTurn() {
@@ -69,13 +82,17 @@ async function takeComputerTurn(token) {
   const tools = randomTools();
   const hand = game.hands[COMPUTER.id];
 
-  if (handValue(hand) <= 5) {
+  if (shouldComputerCallYaniv({
+    hand,
+    opponentHandCount: game.hands[YOU.id].length,
+    level: activeLevel,
+  })) {
     applyAction(game, COMPUTER.id, { type: "CALL_YANIV" }, tools);
     render();
     return;
   }
 
-  for (const index of bestMeldIndices(hand)) {
+  for (const index of chooseComputerMeld(hand, { level: activeLevel })) {
     applyAction(game, COMPUTER.id, { type: "TOGGLE_CARD", index }, tools);
   }
   render(`${COMPUTER.name} is choosing a play…`);
@@ -87,29 +104,29 @@ async function takeComputerTurn(token) {
 
   await wait(760);
   if (token !== gameToken || game.status !== "playing" || game.currentPlayerId !== COMPUTER.id) return;
-  const available = game.discard.at(-1)?.at(-1);
-  const drawDiscard = available && scoreCard(available) <= 4;
-  applyAction(game, COMPUTER.id, { type: drawDiscard ? "DRAW_DISCARD" : "DRAW_DECK" }, tools);
+  const discardCard = game.discard.at(-1)?.at(-1);
+  const draw = chooseComputerDraw({
+    hand: game.hands[COMPUTER.id],
+    discardCard,
+    seenCards: [...game.discard.flat(), ...game.pendingDiscard],
+    level: activeLevel,
+  });
+  applyAction(game, COMPUTER.id, { type: draw }, tools);
   render();
 }
 
-function bestMeldIndices(hand) {
-  let best = [0];
-  let bestWeight = -1;
-  for (let mask = 1; mask < 2 ** hand.length; mask += 1) {
-    const indices = [];
-    for (let index = 0; index < hand.length; index += 1) {
-      if (mask & (1 << index)) indices.push(index);
-    }
-    const cards = indices.map((index) => hand[index]);
-    if (!isValidMeld(cards)) continue;
-    const weight = cards.length * 20 + cards.reduce((total, card) => total + scoreCard(card), 0);
-    if (weight > bestWeight) {
-      best = indices;
-      bestWeight = weight;
-    }
-  }
-  return best;
+function setComputerLevel(level) {
+  if (!isComputerLevel(level)) return;
+  selectedLevel = level;
+  try { localStorage.setItem("yaniv-level", level); } catch {}
+}
+
+function savedLevel() {
+  try {
+    const saved = localStorage.getItem("yaniv-level");
+    if (COMPUTER_LEVELS.includes(saved)) return saved;
+  } catch {}
+  return "easy";
 }
 
 function randomTools() {

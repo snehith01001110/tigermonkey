@@ -25,6 +25,10 @@ const els = {
   settingsDialog: document.getElementById("settingsDialog"),
   closeSettingsBtn: document.getElementById("closeSettingsBtn"),
   computerSetting: document.getElementById("computerSetting"),
+  levelRadios: document.querySelectorAll('input[name="level"]'),
+  levelPending: document.getElementById("levelPending"),
+  levelPendingText: document.getElementById("levelPendingText"),
+  newGameNowBtn: document.getElementById("newGameNowBtn"),
   themeRadios: document.querySelectorAll('input[name="theme"]'),
   themeColor: document.querySelector('meta[name="theme-color"]'),
   playerTally: document.getElementById("playerTally"),
@@ -33,7 +37,14 @@ const els = {
   newGameBtn: document.getElementById("newGameBtn"),
 };
 
-export function createYanivTable({ dispatch, onNewGame = null, online = false }) {
+export function createYanivTable({
+  dispatch,
+  onNewGame = null,
+  online = false,
+  getComputerLevel = null,
+  getActiveComputerLevel = null,
+  onComputerLevelChange = null,
+}) {
   let state = null;
   let meta = { connected: true, busy: false, connectedPlayerIds: [] };
   let countedRound = null;
@@ -41,7 +52,8 @@ export function createYanivTable({ dispatch, onNewGame = null, online = false })
   let countProgress = { player: 0, opponent: 0, active: null };
   let countHands = [];
 
-  els.computerSetting.hidden = true;
+  const canChangeComputerLevel = !online && typeof getComputerLevel === "function" && typeof onComputerLevelChange === "function";
+  els.computerSetting.hidden = !canChangeComputerLevel;
   els.rulesBtn.addEventListener("click", () => els.rulesDialog.showModal());
   els.closeRulesBtn.addEventListener("click", () => els.rulesDialog.close());
   els.historyBtn.addEventListener("click", () => els.historyDialog.showModal());
@@ -54,6 +66,19 @@ export function createYanivTable({ dispatch, onNewGame = null, online = false })
   if (onNewGame) els.newGameBtn.addEventListener("click", onNewGame);
   else els.newGameBtn.hidden = true;
 
+  if (canChangeComputerLevel) {
+    for (const radio of els.levelRadios) {
+      radio.addEventListener("change", () => {
+        onComputerLevelChange(radio.value);
+        updateComputerLevelNote();
+      });
+    }
+    els.newGameNowBtn.addEventListener("click", () => {
+      els.settingsDialog.close();
+      onNewGame?.();
+    });
+  }
+
   for (const radio of els.themeRadios) radio.addEventListener("change", () => applyTheme(radio.value));
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", updateThemeColor);
   updateThemeColor();
@@ -61,6 +86,21 @@ export function createYanivTable({ dispatch, onNewGame = null, online = false })
   function act(type, extra = {}) {
     if (!state?.legalActions.includes(type) || meta.busy || !isInteractive(state, meta, online)) return;
     dispatch({ type, ...extra });
+  }
+
+  function openSettings() {
+    if (canChangeComputerLevel) updateComputerLevelNote();
+    for (const radio of els.themeRadios) radio.checked = radio.value === themeSetting();
+    els.settingsDialog.showModal();
+  }
+
+  function updateComputerLevelNote() {
+    const selected = getComputerLevel?.() || "easy";
+    const active = getActiveComputerLevel?.() || selected;
+    for (const radio of els.levelRadios) radio.checked = radio.value === selected;
+    const matchOver = state?.status === "match-finished";
+    els.levelPending.hidden = selected === active || matchOver;
+    els.levelPendingText.textContent = `This match stays on ${active}.`;
   }
 
   function render(nextState, nextMeta = {}) {
@@ -312,7 +352,7 @@ function renderDock(state, meta, online, act) {
   els.deck.classList.toggle("ready", canDrawDeck);
   els.discard.classList.toggle("ready", canDrawDiscard);
   els.discard.setAttribute("aria-disabled", String(!canDrawDiscard));
-  els.turnLabel.textContent = turnLabel(state);
+  els.turnLabel.textContent = turnLabel(state, meta.computerLevel);
   els.turnLabel.classList.toggle("active", state.currentPlayerId === state.youId && state.status === "playing");
   els.message.textContent = statusMessage(state, meta, online);
 
@@ -370,12 +410,13 @@ function renderHistory(state) {
   }
 }
 
-function turnLabel(state) {
+function turnLabel(state, computerLevel = null) {
   if (state.status === "waiting") return "waiting for a friend";
   if (state.status === "round-finished") return `round ${state.roundNumber} over`;
   if (state.status === "match-finished") return "match over";
   if (state.currentPlayerId === state.youId) return "your turn";
-  return `${otherPlayer(state)?.name || "opponent"}’s turn`;
+  const opponent = otherPlayer(state)?.name || "opponent";
+  return computerLevel ? `${opponent}’s turn · ${computerLevel}` : `${opponent}’s turn`;
 }
 
 function statusMessage(state, meta, online) {
@@ -438,11 +479,6 @@ function cardElement(card, { faceUp = false, owner = null, index = null, selecta
       </span>
     </span>`;
   return button;
-}
-
-function openSettings() {
-  for (const radio of els.themeRadios) radio.checked = radio.value === themeSetting();
-  els.settingsDialog.showModal();
 }
 
 function themeSetting() {

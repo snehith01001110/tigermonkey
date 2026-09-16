@@ -30,6 +30,7 @@ A small browser card table for Cabo and Yaniv. Both games support a computer opp
 - You may call Yaniv at 5 points or fewer.
 - If the opponent has the same or a lower hand, they call Assaf: they score 0 and the caller adds their hand plus a 30-point penalty.
 - Rounds continue until a score reaches 200; the lower total wins the match.
+- Local play has easy, medium, and hard computer opponents in Settings. Medium looks for useful discard pickups and makes safer Yaniv calls; hard also weighs the remaining deck and Assaf risk.
 
 ## Run locally
 
