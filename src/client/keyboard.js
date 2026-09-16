@@ -9,6 +9,7 @@ const TARGET_SELECTOR = [
 const EXTRA_CARD_KEYS = ["9", "0", "q", "w", "e", "r", "t", "u", "i", "o", "p", "a", "f", "g", "h", "j", "l", "z", "v", "b", "n"];
 const CABO_PLAYER_CARD_KEYS = ["1", "2", "3", "4", ...EXTRA_CARD_KEYS];
 const YANIV_PLAYER_CARD_KEYS = ["1", "2", "3", "4", "5"];
+const GOLF_TABLEAU_KEYS = ["1", "2", "3", "4", "5", "6", "7"];
 const OPPONENT_CARD_KEYS = ["5", "6", "7", "8", ...EXTRA_CARD_KEYS];
 
 export function setupKeyboardControls() {
@@ -142,7 +143,11 @@ export function shortcutForDescriptor({ id = "", owner = "", index = -1, label =
 
   const cardIndex = Number(index);
   if (owner === "player" && Number.isInteger(cardIndex)) {
-    const keys = gameType === "yaniv" ? YANIV_PLAYER_CARD_KEYS : CABO_PLAYER_CARD_KEYS;
+    const keys = gameType === "yaniv"
+      ? YANIV_PLAYER_CARD_KEYS
+      : gameType === "golf"
+        ? GOLF_TABLEAU_KEYS
+        : CABO_PLAYER_CARD_KEYS;
     return shortcut(keys[cardIndex]);
   }
   if ((owner === "ai" || owner === "opponent") && Number.isInteger(cardIndex)) return shortcut(OPPONENT_CARD_KEYS[cardIndex]);

@@ -32,6 +32,13 @@ A small browser card table for Cabo and Yaniv. Both games support a computer opp
 - Rounds continue until a score reaches 200; the lower total wins the match.
 - Local play has easy, medium, and hard computer opponents in Settings. Medium looks for useful discard pickups and makes safer Yaniv calls; hard also weighs the remaining deck and Assaf risk.
 
+## Golf Solitaire rules in this version
+
+- A solo, seven-column game with 35 cards in the tableau and 16 cards in the stock.
+- Play only the exposed card from a column, one rank above or below the waste card.
+- Aces and Kings wrap around, so either can follow the other.
+- Clear all tableau cards before the stock is exhausted. Every move can be undone.
+
 ## Run locally
 
 Install the development dependency, then run the site and multiplayer API in separate terminals:

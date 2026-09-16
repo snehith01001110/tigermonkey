@@ -26,6 +26,13 @@ test("Yaniv maps its five interactive cards directly to 1–5", () => {
   );
 });
 
+test("Golf maps its seven exposed columns directly to 1–7", () => {
+  assert.deepEqual(
+    Array.from({ length: 7 }, (_, index) => key({ owner: "player", index, gameType: "golf" })),
+    ["1", "2", "3", "4", "5", "6", "7"],
+  );
+});
+
 test("piles and contextual actions have mnemonic shortcuts", () => {
   assert.equal(key({ id: "deck" }), "d");
   assert.equal(key({ id: "discard" }), "x");

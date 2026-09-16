@@ -10,7 +10,9 @@ const gameApp = document.getElementById("gameApp");
 const gamePicker = document.getElementById("gamePicker");
 const gameMenuButton = document.getElementById("gameMenuButton");
 const gameMenu = document.getElementById("gameMenu");
-document.getElementById("currentGameLabel").textContent = GAME_CATALOG.find((game) => game.id === gameType)?.name || gameType;
+const game = GAME_CATALOG.find((candidate) => candidate.id === gameType);
+const supportsMultiplayer = game?.multiplayer !== false;
+document.getElementById("currentGameLabel").textContent = game?.name || gameType;
 
 for (const game of GAME_CATALOG) {
   const link = document.createElement("a");
@@ -58,19 +60,21 @@ if (!roomCode && !selectedGameType) {
   gameApp.hidden = true;
 } else {
   document.body.dataset.game = gameType;
-  document.title = `TigerMonkey — ${gameType === "yaniv" ? "Yaniv" : "Cabo"}`;
-  document.getElementById("rulesTitle").textContent = gameType;
+  document.title = `TigerMonkey — ${game?.name || gameType}`;
+  document.getElementById("rulesTitle").textContent = game?.name || gameType;
   if (gameType === "yaniv") {
     document.getElementById("keyboardControlsHelp").textContent = "Press the key shown on each available control. Your five cards use 1–5, D draws the deck, X takes the discard, Y calls Yaniv, and ↵ is Enter.";
+  } else if (gameType === "golf") {
+    document.getElementById("keyboardControlsHelp").textContent = "Press the key shown on each available control. The seven exposed columns use 1–7, D turns a stock card, and ↵ starts a new round.";
   }
 
-  gameMenuButton.disabled = Boolean(roomCode);
-  if (roomCode) gameMenuButton.title = "Leave the room before changing games";
+  gameMenuButton.disabled = Boolean(roomCode && supportsMultiplayer);
+  if (roomCode && supportsMultiplayer) gameMenuButton.title = "Leave the room before changing games";
   for (const rules of document.querySelectorAll("[data-rules-for]")) rules.hidden = rules.dataset.rulesFor !== gameType;
 
   setupKeyboardControls();
 
-  if (roomCode) {
+  if (roomCode && supportsMultiplayer) {
     if (gameType === "yaniv") {
       const { startYanivOnlineGame } = await import("./yaniv-online.js");
       startYanivOnlineGame(roomCode);
@@ -81,6 +85,9 @@ if (!roomCode && !selectedGameType) {
   } else if (gameType === "yaniv") {
     const { startLocalYaniv } = await import("./yaniv-local.js");
     startLocalYaniv();
+  } else if (gameType === "golf") {
+    const { startGolf } = await import("./golf-ui.js");
+    startGolf();
   } else {
     await import("../../game.js");
     const { setupLobby } = await import("./lobby.js");

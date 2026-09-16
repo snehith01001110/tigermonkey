@@ -381,6 +381,57 @@ body[data-game="yaniv"] .tally {
 }
 body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h) * .2), 24px); }
 
+/* Golf Solitaire: seven overlapping face-up columns, with only each bottom card playable. */
+body[data-game="golf"] {
+  --card-h: clamp(44px, min(13vw, calc((100dvh - 210px) / 4.9)), 112px);
+  --golf-overlap: calc(var(--card-h) * .34);
+}
+body[data-game="golf"] .table {
+  justify-content: center;
+  gap: calc(var(--card-h) * .2);
+}
+.golf-stats {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+.golf-tableau {
+  display: grid;
+  grid-template-columns: repeat(7, var(--card-w));
+  gap: clamp(2px, .7vw, 8px);
+  align-items: end;
+}
+.golf-column {
+  position: relative;
+  width: var(--card-w);
+  height: calc(var(--card-h) + var(--golf-overlap) * 4);
+}
+.golf-column .card {
+  position: absolute;
+  top: calc(var(--golf-card-i) * var(--golf-overlap));
+  left: 0;
+}
+.golf-covered { pointer-events: none; }
+.golf-cleared {
+  position: absolute;
+  top: calc(var(--golf-overlap) * 4);
+  width: var(--card-w);
+  height: var(--card-h);
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.golf-center { padding-bottom: 18px; }
+.golf-waste .card { position: absolute; inset: 0; pointer-events: none; }
+
 /* A hand stays centered on the table with its score tally parked beside it, so the
    round can be counted up in place instead of behind a dialog. */
 .hand-row {
@@ -727,7 +778,7 @@ body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h)
 .modal h2 { margin: 0; font-size: 28px; }
 .icon-button { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 28px; line-height: 1; }
 .rules-grid { display: grid; gap: 8px; margin: 22px 0; }
-.rules-grid > div { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.rules-grid > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .rules-grid span { color: var(--muted); }
 .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
 
