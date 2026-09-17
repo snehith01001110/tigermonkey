@@ -45,10 +45,7 @@ for (const game of GAME_CATALOG) {
   link.className = "game-choice";
   link.href = gameUrl(game.id);
   link.innerHTML = `
-    <span class="game-choice-copy">
-      <strong>${game.name}</strong>
-      <span>${game.description}</span>
-    </span>
+    <strong>${game.name}</strong>
     <span class="game-arrow" aria-hidden="true">→</span>`;
   gameGrid.appendChild(link);
 }
@@ -62,17 +59,12 @@ if (!roomCode && !selectedGameType) {
   document.body.dataset.game = gameType;
   document.title = `TigerMonkey — ${game?.name || gameType}`;
   document.getElementById("rulesTitle").textContent = game?.name || gameType;
-  if (gameType === "yaniv") {
-    document.getElementById("keyboardControlsHelp").textContent = "Press the key shown on each available control. Your five cards use 1–5, D draws the deck, X takes the discard, Y calls Yaniv, and ↵ is Enter.";
-  } else if (gameType === "golf") {
-    document.getElementById("keyboardControlsHelp").textContent = "Press the key shown on each available control. The seven exposed columns use 1–7, D turns a stock card, and ↵ starts a new round.";
-  }
 
   gameMenuButton.disabled = Boolean(roomCode && supportsMultiplayer);
   if (roomCode && supportsMultiplayer) gameMenuButton.title = "Leave the room before changing games";
   for (const rules of document.querySelectorAll("[data-rules-for]")) rules.hidden = rules.dataset.rulesFor !== gameType;
 
-  setupKeyboardControls();
+  if (gameType !== "dice") setupKeyboardControls();
 
   if (roomCode && supportsMultiplayer) {
     if (gameType === "yaniv") {
@@ -88,6 +80,9 @@ if (!roomCode && !selectedGameType) {
   } else if (gameType === "golf") {
     const { startGolf } = await import("./golf-ui.js");
     startGolf();
+  } else if (gameType === "dice") {
+    const { startDice } = await import("./dice-ui.js");
+    startDice();
   } else {
     await import("../../game.js");
     const { setupLobby } = await import("./lobby.js");

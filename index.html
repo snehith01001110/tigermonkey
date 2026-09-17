@@ -101,16 +101,38 @@
         <button id="closeRulesBtn" class="icon-button" type="button" aria-label="Close rules">×</button>
       </div>
       <div data-rules-for="cabo">
-        <p>Get the lowest score. You start with four face-down cards and may only see the bottom two.</p>
-        <div class="rules-grid">
-          <div><strong>7–8</strong><span>peek at one of yours</span></div>
-          <div><strong>9–10</strong><span>peek at one of theirs</span></div>
-          <div><strong>J</strong><span>blind swap</span></div>
-          <div><strong>Q</strong><span>swap, then check what you got</span></div>
-          <div><strong>K</strong><span>check theirs, then choose whether to swap</span></div>
-        </div>
-        <p class="small">Powers only trigger when the card is drawn from the deck and discarded. Red kings are −1. Jokers are 0. If you think one of your face-down cards matches the top discard, use <em>match discard</em>. The card leaves an empty spot behind, so the rest of your hand never moves. A wrong match adds a penalty card, which fills an empty spot first.</p>
-        <p class="small">Call Cabo to lock your hand. The other player gets one final turn, then both hands are revealed and counted up on the table, each card marked with what it was worth.</p>
+        <p class="rules-lead"><strong>Have the lowest total when the round ends.</strong> Remember your hidden cards and replace high ones with low ones.</p>
+
+        <section class="rules-section" aria-labelledby="cabo-basics">
+          <h3 id="cabo-basics">How a turn works</h3>
+          <ol class="rules-steps">
+            <li><span><strong>Remember your hand.</strong> You have four face-down cards. At the start, you may look at only your bottom two.</span></li>
+            <li><span><strong>Choose a card.</strong> Draw from the deck or take the top discard.</span></li>
+            <li><span><strong>Keep it or discard it.</strong> Replace one of your cards, or discard a deck card to use its power.</span></li>
+          </ol>
+        </section>
+
+        <section class="rules-section" aria-labelledby="cabo-powers">
+          <h3 id="cabo-powers">Power cards</h3>
+          <p class="rules-note">A power works only when you draw that card from the deck and discard it.</p>
+          <div class="rules-grid">
+            <div><strong>7–8</strong><span>look at one of your cards</span></div>
+            <div><strong>9–10</strong><span>look at one opponent card</span></div>
+            <div><strong>J</strong><span>swap one of yours with one of theirs, without looking</span></div>
+            <div><strong>Q</strong><span>swap one of yours with one of theirs, then look at the card you received</span></div>
+            <div><strong>K</strong><span>look at one opponent card, then choose whether to swap it</span></div>
+          </div>
+        </section>
+
+        <section class="rules-section" aria-labelledby="cabo-match">
+          <h3 id="cabo-match">Match the discard</h3>
+          <p class="rules-note">At the start of your turn, you can remove one of your cards if it has the same rank as the top discard. Get it right and the space stays empty; get it wrong and you take a penalty card.</p>
+        </section>
+
+        <section class="rules-section" aria-labelledby="cabo-end">
+          <h3 id="cabo-end">End the round</h3>
+          <p class="rules-note"><strong>Call Cabo</strong> when you think your score is lowest. Your opponent gets one final turn, then both hands are revealed and scored. Jokers are 0 and red kings are −1.</p>
+        </section>
       </div>
       <div data-rules-for="yaniv" hidden>
         <p>Empty your hand quickly, or call Yaniv when your cards total 5 or less. Lowest match score wins.</p>
@@ -132,6 +154,13 @@
           <div><strong>stock</strong><span>turn a new waste card when no move fits</span></div>
         </div>
         <p class="small">A new card reveals whenever you clear a column’s exposed card. Clear all 35 tableau cards before the 16-card stock runs out. You can undo any move.</p>
+      </div>
+      <div data-rules-for="dice" hidden>
+        <p class="rules-lead"><strong>Roll a number from 0 up to one less than the number of sides.</strong></p>
+        <section class="rules-section" aria-labelledby="dice-basics">
+          <h3 id="dice-basics">How to roll</h3>
+          <p class="rules-note">Set the die from 4 to 200 sides, then press Space, scroll on a computer, swipe on a phone, or tap the die. Recent rolls stay in the scrollable history beside the die.</p>
+        </section>
       </div>
     </div>
   </dialog>
@@ -201,9 +230,8 @@
         <label class="setting-toggle" for="keyboardControlsToggle">
           <span class="setting-copy">
             <span id="keyboardControlsLabel" class="setting-label">keyboard shortcuts</span>
-            <span id="keyboardControlsHelp" class="setting-note">Press the key shown on each available control. Your cards use 1–4, theirs use 5–8, D draws the deck, and ↵ is Enter.</span>
           </span>
-          <input id="keyboardControlsToggle" type="checkbox" role="switch" aria-labelledby="keyboardControlsLabel" aria-describedby="keyboardControlsHelp" />
+          <input id="keyboardControlsToggle" type="checkbox" role="switch" aria-labelledby="keyboardControlsLabel" />
           <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
         </label>
       </div>

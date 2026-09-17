@@ -119,9 +119,7 @@ button { color: inherit; touch-action: manipulation; }
   text-decoration: none;
   transition: border-color 160ms var(--ease), transform 160ms var(--ease), background 160ms var(--ease);
 }
-.game-choice-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.game-choice-copy strong { font-size: 20px; font-weight: 400; }
-.game-choice-copy > span { color: var(--muted); font-size: 13px; line-height: 1.35; }
+.game-choice strong { font-size: 20px; font-weight: 400; }
 .game-arrow { color: var(--muted); font-size: 18px; transition: transform 160ms var(--ease), color 160ms var(--ease); }
 .game-choice:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 @media (hover: hover) {
@@ -188,6 +186,7 @@ button { color: inherit; touch-action: manipulation; }
   top: calc(100% + 7px);
   left: -10px;
   z-index: 30;
+  width: max-content;
   min-width: 138px;
   padding: 5px;
   border: 1px solid var(--line);
@@ -197,13 +196,14 @@ button { color: inherit; touch-action: manipulation; }
 }
 .game-menu-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: max-content auto;
   align-items: center;
   gap: 18px;
   padding: 8px 10px;
   border-radius: 6px;
   color: var(--muted);
   text-decoration: none;
+  white-space: nowrap;
 }
 .game-menu-item[aria-current="page"] { color: var(--ink); background: var(--bg); }
 .game-menu-check { opacity: 0; }
@@ -380,6 +380,269 @@ body[data-game="yaniv"] .tally {
   padding: 6px 10px;
 }
 body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h) * .2), 24px); }
+
+/* The dice load only the ten numeral glyphs, locally, when the roller opens. */
+@font-face {
+  font-family: "Dice Numerals";
+  src: url("assets/fonts/barlow-semi-condensed-numerals.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  unicode-range: U+0030-0039;
+}
+
+/* Dice: a focused roller with its recent results kept close at hand. */
+body[data-game="dice"] .play { display: block; position: relative; }
+body[data-game="dice"] .play::after { display: none; }
+body[data-game="dice"] .table {
+  width: min(100%, 800px);
+  min-height: min(590px, calc(100dvh - 160px));
+  margin: 0 auto;
+  padding: 24px 0;
+}
+.dice-roller {
+  display: grid;
+  width: 100%;
+  min-height: 450px;
+  grid-template-areas:
+    "controls controls"
+    "roller history";
+  grid-template-columns: minmax(0, 1fr) 148px;
+  align-items: center;
+  column-gap: 24px;
+  row-gap: 34px;
+  padding: 24px 12px 30px;
+}
+.dice-controls {
+  grid-area: controls;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dice-sides-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dice-sides-input {
+  display: grid;
+  grid-template-columns: 28px 46px 28px;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.dice-sides-input button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+}
+.dice-sides-input button:hover:not(:disabled) { background: var(--bg); color: var(--ink); }
+.dice-sides-input button:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--ink); outline-offset: -2px; }
+.dice-sides-input button:disabled { cursor: default; opacity: .3; }
+.dice-sides-input input {
+  width: 46px;
+  min-width: 0;
+  padding: 7px 2px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  letter-spacing: normal;
+  text-transform: none;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.dice-sides-input input::-webkit-inner-spin-button,
+.dice-sides-input input::-webkit-outer-spin-button { margin: 0; appearance: none; }
+.dice-sides-input input:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--ink); outline-offset: -2px; }
+.dice-range { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.dice-roll-surface {
+  grid-area: roller;
+  display: grid;
+  width: 100%;
+  gap: 12px;
+  align-self: center;
+  justify-items: center;
+}
+.dice-roll-button {
+  position: relative;
+  display: block;
+  isolation: isolate;
+  width: 100%;
+  height: clamp(320px, 40vw, 410px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 45% 35%, color-mix(in srgb, var(--paper) 70%, transparent), transparent 75%),
+    var(--bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 12px var(--paper), inset 0 15px 28px rgba(15,14,12,.1), var(--shadow);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.dice-roll-button::before {
+  position: absolute;
+  inset: 14px;
+  z-index: 3;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 3%, transparent);
+  content: "";
+  pointer-events: none;
+}
+.dice-tray-texture {
+  position: absolute;
+  inset: 16px;
+  background-image: radial-gradient(circle, var(--muted) .5px, transparent .8px);
+  background-size: 5px 5px;
+  opacity: .08;
+  pointer-events: none;
+}
+.dice-cast-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  border-radius: 50%;
+  background: #100e0b;
+  pointer-events: none;
+  will-change: transform;
+}
+.dice-wall {
+  position: absolute;
+  z-index: 4;
+  background: var(--ink);
+  opacity: 0;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--ink) 28%, transparent);
+  pointer-events: none;
+}
+.dice-wall-left, .dice-wall-right { top: 18px; bottom: 18px; width: 2px; }
+.dice-wall-left { left: 14px; }
+.dice-wall-right { right: 14px; }
+.dice-wall-top, .dice-wall-bottom { left: 18px; right: 18px; height: 2px; }
+.dice-wall-top { top: 14px; }
+.dice-wall-bottom { bottom: 14px; }
+.dice-contact {
+  position: absolute;
+  z-index: 4;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.dice-roll-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.dice-roll-button.rolling { cursor: progress; }
+.dice-object {
+  --die-size: clamp(132px, 24vw, 178px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: var(--die-size);
+  height: var(--die-size);
+  margin-top: calc(var(--die-size) / -2);
+  margin-left: calc(var(--die-size) / -2);
+  transform-origin: center;
+  pointer-events: none;
+  will-change: transform;
+}
+.dice-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 1px rgba(22,18,10,.22));
+}
+@media (hover: hover) {
+  .dice-roll-button:not(.rolling):hover { border-color: color-mix(in srgb, var(--ink) 34%, transparent); }
+}
+.dice-history-panel {
+  grid-area: history;
+  align-self: end;
+  width: 148px;
+  height: 182px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+.dice-history-panel h2 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dice-roll-history {
+  display: grid;
+  max-height: 128px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  list-style: none;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.dice-roll-history::-webkit-scrollbar { display: none; }
+.dice-roll-history li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.dice-roll-history li:first-child { border-top: 0; }
+.dice-roll-history strong { color: var(--ink); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dice-roll-history .dice-history-empty { display: block; color: var(--muted); }
+@media (max-width: 620px) {
+  body[data-game="dice"] .table { min-height: 0; padding: 16px 0 30px; }
+  .dice-roller {
+    min-height: 0;
+    grid-template-areas:
+      "controls"
+      "roller"
+      "history";
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+    padding: 20px 0 30px;
+  }
+  .dice-roll-surface { gap: 10px; }
+  .dice-roll-button { height: clamp(290px, 86vw, 360px); border-radius: 24px; }
+  .dice-object { --die-size: clamp(112px, 34vw, 148px); }
+  .dice-history-panel { justify-self: center; align-self: auto; width: min(100%, 250px); height: 156px; }
+  .dice-roll-history { max-height: 102px; }
+}
 
 /* Golf Solitaire: seven overlapping face-up columns, with only each bottom card playable. */
 body[data-game="golf"] {
@@ -776,8 +1039,23 @@ body[data-game="golf"] .table {
 .modal-content { padding: 24px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; }
 .modal h2 { margin: 0; font-size: 28px; }
+.rules-lead { margin: 22px 0 0; font-size: 17px; line-height: 1.4; }
+.rules-section { margin-top: 24px; }
+.rules-section h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rules-steps { display: grid; gap: 10px; margin: 0; padding: 0; counter-reset: rule-step; list-style: none; }
+.rules-steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; line-height: 1.4; counter-increment: rule-step; }
+.rules-steps li::before { content: counter(rule-step); color: var(--muted); font-weight: 600; }
+.rules-note { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .icon-button { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 28px; line-height: 1; }
 .rules-grid { display: grid; gap: 8px; margin: 22px 0; }
+.rules-section .rules-grid { margin: 12px 0 0; }
 .rules-grid > div { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .rules-grid span { color: var(--muted); }
 .small { font-size: 13px; color: var(--muted); line-height: 1.55; }
