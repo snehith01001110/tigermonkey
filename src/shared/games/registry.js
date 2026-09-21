@@ -1,4 +1,5 @@
 import * as cabo from "./cabo.js";
+import * as scopa from "./scopa.js";
 import * as yaniv from "./yaniv.js";
 
 const games = new Map([
@@ -18,6 +19,15 @@ const games = new Map([
       addPlayer: yaniv.addPlayer,
       applyAction: yaniv.applyAction,
       viewForPlayer: yaniv.viewForPlayer,
+    },
+  ],
+  [
+    scopa.SCOPA_GAME_TYPE,
+    {
+      create: scopa.createGame,
+      addPlayer: scopa.addPlayer,
+      applyAction: scopa.applyAction,
+      viewForPlayer: scopa.viewForPlayer,
     },
   ],
 ]);

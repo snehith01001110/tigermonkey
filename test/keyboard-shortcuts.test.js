@@ -36,6 +36,7 @@ test("Golf maps its seven exposed columns directly to 1–7", () => {
 test("piles and contextual actions have mnemonic shortcuts", () => {
   assert.equal(key({ id: "deck" }), "d");
   assert.equal(key({ id: "discard" }), "x");
+  assert.equal(key({ id: "scopaMove" }), "enter");
   assert.equal(key({ label: "discard · peek yours" }), "x");
   assert.equal(key({ label: "match discard" }), "m");
   assert.equal(key({ label: "call cabo" }), "c");

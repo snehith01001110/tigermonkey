@@ -34,8 +34,8 @@ function startedGame() {
   return { game, tools };
 }
 
-test("the game registry exposes Cabo and Yaniv", () => {
-  assert.deepEqual(supportedGameTypes(), ["cabo", "yaniv"]);
+test("the game registry exposes every online card game", () => {
+  assert.deepEqual(supportedGameTypes(), ["cabo", "yaniv", "scopa"]);
 });
 
 test("Yaniv deals five cards and redacts only the opponent hand", () => {

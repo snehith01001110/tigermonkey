@@ -8,6 +8,10 @@ export const GAME_CATALOG = Object.freeze([
     name: "yaniv",
   },
   {
+    id: "scopa",
+    name: "scopa",
+  },
+  {
     id: "golf",
     name: "golf solitaire",
     multiplayer: false,

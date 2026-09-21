@@ -1,6 +1,6 @@
 # TigerMonkey
 
-A small browser card table for Cabo and Yaniv. Both games support a computer opponent and private two-player online rooms.
+A small browser table for Cabo, Yaniv, Scopa, Golf Solitaire, and dice. Cabo, Yaniv, and Scopa support a computer opponent and private two-player online rooms.
 
 ## Cabo rules in this version
 
@@ -39,6 +39,15 @@ A small browser card table for Cabo and Yaniv. Both games support a computer opp
 - Aces and Kings wrap around, so either can follow the other.
 - Clear all tableau cards before the stock is exhausted. Every move can be undone.
 
+## Scopa rules in this version
+
+- 3 cards per player and 4 face-up cards on the table, using a 40-card deck.
+- Play one card per turn. A card captures a table card of equal value or, when there is no equal card, a set whose values add up to it.
+- Aces are 1; Jacks, Queens, and Kings are 8, 9, and 10.
+- Clearing the table scores one scopa. The final play of a round cannot score a scopa.
+- Each round also awards one point for most cards, most diamonds, the 7♦, and the best primiera.
+- The first player to 11 points wins.
+
 ## Run locally
 
 Install the development dependency, then run the site and multiplayer API in separate terminals:
@@ -53,7 +62,7 @@ npm run dev:api
 ```
 
 Then visit `http://localhost:8000`. The root page is the game library; individual
-games use explicit URLs such as `/?game=cabo` and `/?game=yaniv`.
+games use explicit URLs such as `/?game=cabo`, `/?game=yaniv`, and `/?game=scopa`.
 
 Run the rules tests and the live two-client smoke test with:
 
@@ -61,17 +70,18 @@ Run the rules tests and the live two-client smoke test with:
 npm test
 npm run smoke:api
 npm run smoke:yaniv
+npm run smoke:scopa
 ```
 
 The smoke test expects `npm run dev:api` to already be running.
 
 ## Multiplayer architecture
 
-- `src/shared/games/cabo.js` and `src/shared/games/yaniv.js` are the server-authoritative rules engines.
+- `src/shared/games/cabo.js`, `src/shared/games/yaniv.js`, and `src/shared/games/scopa.js` are the server-authoritative rules engines.
 - `src/shared/games/registry.js` is the extension point for additional games.
 - `src/client/games.js` is the small catalog that populates both the home page and the in-game picker.
 - `worker/index.js` provides room creation, joining, private player credentials, WebSocket updates, reconnect handling, and one Durable Object per room.
-- `src/client/online.js` and `src/client/yaniv-online.js` render player-specific, redacted room views using the shared table design.
+- The online controllers render player-specific, redacted room views using the shared table design.
 
 The server owns shuffling and validates every action. Hidden cards are removed from each outgoing player view rather than merely hidden with CSS.
 Players join through the host's invite link; the room identifier stays in the URL and is not part of the visible interface.

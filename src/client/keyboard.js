@@ -140,6 +140,7 @@ function labelWithoutHint(target) {
 export function shortcutForDescriptor({ id = "", owner = "", index = -1, label = "", gameType = "cabo" } = {}) {
   if (id === "deck") return shortcut("d");
   if (id === "discard") return shortcut("x");
+  if (id === "scopaMove") return shortcut("enter");
 
   const cardIndex = Number(index);
   if (owner === "player" && Number.isInteger(cardIndex)) {

@@ -8,6 +8,7 @@
     "test": "node --test",
     "smoke:api": "node scripts/smoke-multiplayer.mjs",
     "smoke:yaniv": "node scripts/smoke-yaniv.mjs",
+    "smoke:scopa": "node scripts/smoke-scopa.mjs",
     "check:api": "wrangler deploy --dry-run",
     "deploy:api": "wrangler deploy"
   },

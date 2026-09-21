@@ -10,10 +10,12 @@ test("game and room URLs preserve every local game while Cabo remains the defaul
   assert.equal(selectedGameTypeFromUrl(), "yaniv");
   assert.equal(gameUrl("cabo"), "https://tigermonkey.com/?game=cabo");
   assert.equal(gameUrl("yaniv"), "https://tigermonkey.com/?game=yaniv");
+  assert.equal(gameUrl("scopa"), "https://tigermonkey.com/?game=scopa");
   assert.equal(gameUrl("golf"), "https://tigermonkey.com/?game=golf");
   assert.equal(gameUrl("dice"), "https://tigermonkey.com/?game=dice");
   assert.equal(roomUrl("abc234", "cabo"), "https://tigermonkey.com/?game=cabo&room=ABC234");
   assert.equal(roomUrl("abc234", "yaniv"), "https://tigermonkey.com/?game=yaniv&room=ABC234");
+  assert.equal(roomUrl("abc234", "scopa"), "https://tigermonkey.com/?game=scopa&room=ABC234");
 });
 
 test("a bare root has no selected game and falls back to Cabo only for legacy links", () => {

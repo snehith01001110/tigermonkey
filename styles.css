@@ -540,6 +540,213 @@ body[data-game="yaniv"] .tally {
 }
 body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h) * .2), 24px); }
 
+/* Scopa: three-card hands frame a shared capture table. Seven card-width tracks fit the
+   stock, five table cards, and the captured piles; ten is the table's rules-based maximum. */
+body[data-game="scopa"] {
+  --scopa-gap: clamp(5px, calc(var(--card-h) * .1), 11px);
+  --card-w: clamp(42px, min(
+    calc((var(--table-w) - var(--scopa-gap) * 6) / 7),
+    calc((var(--play-h) - 92px) / 4.65 * .71)
+  ), 88px);
+  --card-h: calc(var(--card-w) / .71);
+  --radius: calc(var(--card-h) * .08);
+  --gap: calc(var(--card-h) * .1);
+}
+body[data-game="scopa"] .table {
+  gap: clamp(8px, calc(var(--card-h) * .17), 18px);
+  padding-block: 10px;
+}
+body[data-game="scopa"] .hand {
+  width: calc(var(--card-w) * 3 + var(--gap) * 2 + 1px);
+  min-height: var(--card-h);
+}
+body[data-game="scopa"] .ai-hand { flex-flow: row nowrap; }
+body[data-game="scopa"] .tally {
+  left: calc(50% + var(--card-w) * 1.5 + var(--gap) + 15px);
+  right: auto;
+  padding: 6px 10px;
+}
+body[data-game="scopa"] .tally-total { font-size: clamp(17px, calc(var(--card-h) * .2), 24px); }
+.scopa-board {
+  display: grid;
+  grid-template-areas: "deck table captures";
+  grid-template-columns: var(--card-w) minmax(0, 1fr) var(--card-w);
+  align-items: center;
+  gap: var(--scopa-gap);
+  width: min(100%, calc(var(--card-w) * 7 + var(--scopa-gap) * 6));
+  min-height: calc(var(--card-h) * 2 + 28px);
+  padding-block: 4px 20px;
+}
+.scopa-deck { grid-area: deck; justify-self: center; }
+.scopa-deck:disabled { opacity: 1; }
+.scopa-deck .pile-label { bottom: -21px; font-size: clamp(9px, calc(var(--card-h) * .11), 11px); }
+.scopa-table {
+  grid-area: table;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: var(--scopa-gap);
+  min-width: 0;
+  min-height: calc(var(--card-h) * 2 + var(--scopa-gap));
+  border-radius: calc(var(--radius) * 1.5);
+}
+.scopa-table .card.capturable .card-face {
+  outline: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent);
+  outline-offset: 3px;
+}
+.scopa-table .card.capture-preview {
+  z-index: 2;
+  transform: translateY(-6px) scale(1.025);
+}
+.scopa-table .card.capture-preview .card-face {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  box-shadow: 0 15px 28px rgba(0, 0, 0, .18);
+}
+.scopa-empty-table {
+  display: grid;
+  place-items: center;
+  width: calc(var(--card-w) * 2 + var(--scopa-gap));
+  height: var(--card-h);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: "Grenze Gotisch", "Kelly Slab", serif;
+  font-size: clamp(17px, calc(var(--card-h) * .2), 24px);
+  opacity: .7;
+}
+.scopa-capture-column {
+  grid-area: captures;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  min-height: calc(var(--card-h) * 2 + 28px);
+}
+.scopa-capture-pile {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+.scopa-capture-stack {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+}
+.scopa-capture-stack.empty { border: 1px dashed var(--line); border-radius: var(--radius); opacity: .5; }
+.scopa-capture-stack .card {
+  position: absolute;
+  inset: 0;
+  transform: translate(calc(var(--capture-i) * .7px), calc(var(--capture-i) * -.9px)) rotate(calc((var(--capture-i) - 3) * .45deg));
+}
+.scopa-capture-label {
+  position: absolute;
+  left: 50%;
+  bottom: -21px;
+  width: max-content;
+  max-width: calc(var(--card-w) * 1.8);
+  overflow: hidden;
+  color: var(--muted);
+  font-size: clamp(8px, calc(var(--card-h) * .095), 10px);
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.scopa-round-score {
+  display: grid;
+  align-content: center;
+  gap: 0;
+  width: 100%;
+  padding: 4px clamp(2px, 1vw, 12px);
+}
+.scopa-score-row {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) repeat(2, minmax(42px, .65fr));
+  align-items: center;
+  gap: 8px;
+  min-height: 25px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: clamp(9px, calc(var(--card-h) * .1), 11px);
+}
+.scopa-score-row:first-child { border-top: 0; }
+.scopa-score-row > :not(:first-child) { text-align: right; }
+.scopa-score-row strong { color: var(--muted); font-weight: 400; }
+.scopa-score-row strong.won { color: var(--ink); font-weight: 700; }
+.scopa-score-row strong.won::after { content: " +1"; font-size: .82em; }
+.scopa-score-scopas strong.won::after { content: ""; }
+.scopa-score-header {
+  min-height: 21px;
+  border-top: 0;
+  font-size: clamp(8px, calc(var(--card-h) * .085), 10px);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.scopa-sweep .scopa-table { animation: scopa-sweep-flash 720ms var(--ease); }
+.scopa-capture-pile.scopa-capture-pop { animation: scopa-capture-pop 540ms var(--ease); }
+body[data-game="scopa"] .actions:has(.scopa-capture-choice) {
+  flex-wrap: nowrap;
+  max-width: min(62vw, 720px);
+  padding: 4px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+.scopa-capture-choice {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+@keyframes scopa-sweep-flash {
+  35% { background: color-mix(in srgb, var(--ink) 8%, transparent); box-shadow: 0 0 0 8px color-mix(in srgb, var(--ink) 5%, transparent); }
+}
+@keyframes scopa-capture-pop {
+  45% { transform: scale(1.08) rotate(-1deg); }
+}
+
+@media (max-width: 620px) {
+  body[data-game="scopa"] {
+    --card-w: clamp(44px, min(
+      calc((var(--table-w) - var(--scopa-gap) * 4) / 5),
+      calc((var(--play-h) - 100px) / 5.2 * .71)
+    ), 74px);
+  }
+  body[data-game="scopa"] .tally { left: auto; right: -2px; padding: 4px 7px; }
+  body[data-game="scopa"] .tally-name { display: none; }
+  .scopa-board {
+    grid-template-areas:
+      "deck . . captures captures"
+      "table table table table table";
+    grid-template-columns: repeat(5, var(--card-w));
+    align-items: center;
+    justify-content: center;
+    width: calc(var(--card-w) * 5 + var(--scopa-gap) * 4);
+    min-height: 0;
+    padding-bottom: 18px;
+  }
+  .scopa-deck { align-self: start; }
+  .scopa-table { min-height: calc(var(--card-h) * 2 + var(--scopa-gap)); }
+  .scopa-capture-column {
+    align-self: start;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: var(--scopa-gap);
+    min-height: var(--card-h);
+  }
+  body[data-game="scopa"] .actions:has(.scopa-capture-choice) { max-width: calc(100vw - 32px); }
+  .scopa-score-row { grid-template-columns: minmax(62px, 1fr) repeat(2, minmax(40px, .65fr)); min-height: 23px; }
+}
+
+@media (min-width: 861px) {
+  body[data-game="scopa"] .play { grid-template-columns: 150px minmax(0, 1fr) 150px; }
+}
+
 /* The dice load only the ten numeral glyphs, locally, when the roller opens. */
 @font-face {
   font-family: "Dice Numerals";
@@ -1487,6 +1694,7 @@ body[data-game="golf"] .pile-label {
 
 @media (prefers-reduced-motion: reduce) {
   .game-choice, .game-choice::before, .game-arrow { transition: none; }
+  .scopa-sweep .scopa-table, .scopa-capture-pile.scopa-capture-pop { animation: none; }
   .card, .deck-layer { transition: none; }
   .toggle-track, .toggle-thumb { transition: none; }
   .shortcut-hint-flash { animation: shortcut-flash-reduced 240ms linear forwards; }
