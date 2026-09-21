@@ -1,4 +1,5 @@
-export const CARD_MOVE_MS = 460;
+export const CARD_MOVE_MS = 650;
+export const CARD_DEAL_DELAY_MS = 120;
 
 const CARD_SELECTOR = ".card[data-card-id]";
 const MOTION_EASING = "cubic-bezier(.2, .75, .25, 1)";
@@ -17,7 +18,7 @@ export function snapshotCards(root = document) {
 
 // Rebuild-friendly FLIP motion for every card table. Existing cards travel from their
 // previous position; new cards emerge from the deck in their declared deal order.
-export function animateCards(before, { root = document, deck = root.querySelector("#deck"), dealDelay = 90 } = {}) {
+export function animateCards(before, { root = document, deck = root.querySelector("#deck"), dealDelay = CARD_DEAL_DELAY_MS } = {}) {
   if (prefersReducedMotion() || !deck) return;
 
   const deckCard = deck.querySelector(".deck-layer:last-child") || deck;
@@ -36,6 +37,11 @@ export function animateCards(before, { root = document, deck = root.querySelecto
   dealt
     .sort((a, b) => Number(a.dataset.deal || 0) - Number(b.dataset.deal || 0))
     .forEach((card, index) => animateCard(card, fromDeck, index * dealDelay));
+}
+
+export function cardDealDuration(cardCount, dealDelay = CARD_DEAL_DELAY_MS) {
+  if (cardCount <= 0) return 0;
+  return CARD_MOVE_MS + (cardCount - 1) * dealDelay;
 }
 
 function animateCard(card, from, delay) {

@@ -8,7 +8,7 @@ import {
   prettyGolfCard,
   undoGolfMove,
 } from "./golf.js";
-import { animateCards, snapshotCards } from "./card-motion.js";
+import { animateCards, snapshotCards } from "./card-motion.js?v=slower-motion";
 
 const els = {
   multiplayerBtn: document.getElementById("multiplayerBtn"),

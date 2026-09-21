@@ -1,5 +1,5 @@
-import { CARD_MOVE_MS, animateCards, snapshotCards } from "./src/client/card-motion.js";
-import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./src/client/score-motion.js";
+import { CARD_MOVE_MS, animateCards, cardDealDuration, snapshotCards } from "./src/client/card-motion.js?v=slower-motion";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./src/client/score-motion.js?v=slower-motion";
 
 (() => {
   const SUITS = ["♠", "♥", "♦", "♣"];
@@ -455,7 +455,7 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
       state.phase = "initial-peek";
       say("Memorize your bottom two cards, then press got it.");
       render();
-    }, 1300);
+    }, cardDealDuration(9) + 200);
   }
 
   function finishInitialPeek() {
@@ -690,7 +690,7 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
     state.turn = "ai";
     state.phase = "ai-turn";
     render();
-    later(aiTurn, 750);
+    later(aiTurn, CARD_MOVE_MS + 450);
   }
 
   function endPlayerTurn() {
@@ -705,7 +705,7 @@ import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "
     state.turn = "ai";
     state.phase = "ai-turn";
     render();
-    later(aiTurn, 700);
+    later(aiTurn, CARD_MOVE_MS + 450);
   }
 
   async function aiTurn() {

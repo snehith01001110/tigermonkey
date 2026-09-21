@@ -1,6 +1,6 @@
 import { prettyCard, scoreCard } from "../shared/games/yaniv.js";
-import { animateCards, snapshotCards } from "./card-motion.js";
-import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./score-motion.js";
+import { animateCards, snapshotCards } from "./card-motion.js?v=slower-motion";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./score-motion.js?v=slower-motion";
 
 const els = {
   aiHand: document.getElementById("aiHand"),

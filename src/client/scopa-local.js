@@ -1,8 +1,9 @@
 import { GameRuleError } from "../shared/games/errors.js";
 import { addPlayer, applyAction, createGame, viewForPlayer } from "../shared/games/scopa.js";
 import { COMPUTER_LEVELS, chooseComputerMove, isComputerLevel } from "./scopa-ai.js";
+import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=slower-motion";
 import { setupLobby } from "./lobby.js";
-import { createScopaTable } from "./scopa-ui.js?v=motion-sync";
+import { createScopaTable } from "./scopa-ui.js?v=slower-motion";
 
 const YOU = { id: "local-you", name: "you" };
 const COMPUTER = { id: "local-computer", name: "computer" };
@@ -32,15 +33,18 @@ function startGame() {
   game = createGame({ roomCode: "LOCAL", host: YOU });
   addPlayer(game, COMPUTER, tools);
   render();
-  queueComputerTurn();
+  queueComputerTurn({ dealtCards: 10 });
 }
 
 function playerAction(action) {
   try {
+    const previousBatch = game.batchNumber;
     applyAction(game, YOU.id, action, randomTools());
     completeReadyPair(action.type);
     render();
-    queueComputerTurn();
+    const newRound = (action.type === "READY_NEXT" || action.type === "REMATCH") && game.status === "playing";
+    const newBatch = action.type === "PLAY_CARD" && game.batchNumber !== previousBatch;
+    queueComputerTurn({ dealtCards: newRound ? 10 : newBatch ? 6 : 0 });
   } catch (error) {
     if (error instanceof GameRuleError) render(error.message);
     else throw error;
@@ -62,10 +66,11 @@ function render(message = "") {
   });
 }
 
-function queueComputerTurn() {
+function queueComputerTurn({ dealtCards = 0 } = {}) {
   if (game.status !== "playing" || game.currentPlayerId !== COMPUTER.id) return;
   const token = gameToken;
-  setTimeout(() => takeComputerTurn(token), 650);
+  const delay = dealtCards ? cardDealDuration(dealtCards) + 300 : CARD_MOVE_MS + 450;
+  setTimeout(() => takeComputerTurn(token), delay);
 }
 
 function takeComputerTurn(token) {

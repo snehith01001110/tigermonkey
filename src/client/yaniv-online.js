@@ -1,6 +1,6 @@
 import { gameUrl, loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
 import { closeLobby, setupLobby, showWaitingRoom } from "./lobby.js";
-import { createYanivTable } from "./yaniv-ui.js";
+import { createYanivTable } from "./yaniv-ui.js?v=slower-motion";
 
 let roomCode = "";
 let credential = null;

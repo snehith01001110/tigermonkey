@@ -12,8 +12,9 @@ import {
   isComputerLevel,
   shouldComputerCallYaniv,
 } from "./yaniv-ai.js";
+import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=slower-motion";
 import { setupLobby } from "./lobby.js";
-import { createYanivTable } from "./yaniv-ui.js";
+import { createYanivTable } from "./yaniv-ui.js?v=slower-motion";
 
 const YOU = { id: "local-you", name: "you" };
 const COMPUTER = { id: "local-computer", name: "computer" };
@@ -43,7 +44,7 @@ function startGame() {
   game = createGame({ roomCode: "LOCAL", host: YOU });
   addPlayer(game, COMPUTER, tools);
   render();
-  queueComputerTurn();
+  queueComputerTurn({ dealtCards: 10 });
 }
 
 function playerAction(action) {
@@ -51,7 +52,8 @@ function playerAction(action) {
     applyAction(game, YOU.id, action, randomTools());
     completeReadyPair(action.type);
     render();
-    queueComputerTurn();
+    const newRound = (action.type === "READY_NEXT" || action.type === "REMATCH") && game.status === "playing";
+    queueComputerTurn({ dealtCards: newRound ? 10 : 0 });
   } catch (error) {
     if (error instanceof GameRuleError) render(error.message);
     else throw error;
@@ -71,10 +73,11 @@ function render(message = "") {
   ui.render(view, { computerLevel: activeLevel, ...(message ? { message } : {}) });
 }
 
-function queueComputerTurn() {
+function queueComputerTurn({ dealtCards = 0 } = {}) {
   if (game.status !== "playing" || game.currentPlayerId !== COMPUTER.id) return;
   const token = gameToken;
-  setTimeout(() => takeComputerTurn(token), 650);
+  const delay = dealtCards ? cardDealDuration(dealtCards) + 300 : CARD_MOVE_MS + 450;
+  setTimeout(() => takeComputerTurn(token), delay);
 }
 
 async function takeComputerTurn(token) {
