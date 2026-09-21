@@ -461,7 +461,9 @@ body[data-game]:not([data-game="home"]) {
   align-content: center;
   justify-content: center;
   gap: var(--gap);
-  width: calc(var(--card-w) * 2 + var(--gap));
+  /* Leave a fractional-pixel cushion so browser zoom and high-DPI rounding cannot
+     turn a two-column hand into a single column. */
+  width: calc(var(--card-w) * 2 + var(--gap) + 1px);
   min-height: calc(var(--card-h) * 2 + var(--gap));
 }
 
@@ -474,7 +476,7 @@ body[data-game]:not([data-game="home"]) {
 /* Yaniv hands are public to their owner and start as a five-card row. */
 body[data-game="yaniv"] .table { gap: calc(var(--card-h) * .42); }
 body[data-game="yaniv"] .hand {
-  width: min(100%, calc(var(--card-w) * 5 + var(--gap) * 4));
+  width: min(100%, calc(var(--card-w) * 5 + var(--gap) * 4 + 1px));
   min-height: var(--card-h);
 }
 body[data-game="yaniv"] .ai-hand { flex-direction: row; flex-wrap: wrap; }
@@ -812,9 +814,8 @@ body[data-game="golf"] .table {
   letter-spacing: .04em;
 }
 .golf-tableau {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(7, var(--card-w));
   align-items: flex-end;
   gap: clamp(6px, calc(var(--card-h) * .12), 14px) var(--golf-gap);
   max-width: 100%;
@@ -854,8 +855,10 @@ body[data-game="golf"] .table {
       calc((var(--play-h) - 112px) / 6.12 * 0.71)
     ), 86px);
   }
-  /* Four columns wide, so the seven wrap 4 + 3 instead of wherever they happen to fit. */
-  .golf-tableau { max-width: calc(var(--card-w) * 4 + var(--golf-gap) * 3); }
+  .golf-tableau {
+    grid-template-columns: repeat(4, var(--card-w));
+    max-width: calc(var(--card-w) * 4 + var(--golf-gap) * 3);
+  }
 }
 
 .golf-center { padding-bottom: 18px; }
