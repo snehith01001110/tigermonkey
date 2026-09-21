@@ -1,5 +1,5 @@
 import { captureOptions, cardValue, prettyCard } from "../shared/games/scopa.js";
-import { animateCards, snapshotCards } from "./card-motion.js?v=stable-mobile-selection";
+import { animateCards, snapshotCards } from "./card-motion.js?v=mobile-scopa-rail";
 
 const baseEls = {
   table: document.querySelector(".table"),
@@ -462,10 +462,18 @@ function renderCapturePile(container, cards, name, scopas) {
   });
   if (!cards.length) stack.classList.add("empty");
 
+  /* The owner's name leads the label on wide screens, where both piles share one column.
+     On a phone each pile sits in its owner's row, so the name drops and the count leads. */
   const label = document.createElement("span");
   label.className = "scopa-capture-label";
-  const sweepText = scopas ? ` · ${scopas} ${scopas === 1 ? "scopa" : "scope"}` : "";
-  label.textContent = `${name} · ${cards.length}${sweepText}`;
+  const owner = document.createElement("span");
+  owner.className = "scopa-capture-owner";
+  owner.textContent = `${name} · `;
+  const count = document.createElement("span");
+  count.className = "scopa-capture-count";
+  count.textContent = String(cards.length);
+  label.append(owner, count);
+  if (scopas) label.append(document.createTextNode(` · ${scopas} ${scopas === 1 ? "scopa" : "scope"}`));
   container.append(stack, label);
 }
 

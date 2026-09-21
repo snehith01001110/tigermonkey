@@ -263,6 +263,12 @@ body[data-game]:not([data-game="home"]) {
 .game-menu-button:focus-visible { outline: 1px solid var(--ink); outline-offset: 4px; border-radius: 2px; }
 .game-menu-button:disabled { cursor: default; opacity: .7; }
 .game-menu-button:disabled .game-menu-chevron { display: none; }
+.game-menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .game-menu {
   position: absolute;
   top: calc(100% + 7px);
@@ -446,14 +452,16 @@ body[data-game]:not([data-game="home"]) {
   .history-toggle { display: inline-block; }
 }
 
-/* Phone header: the logo returns to the game list, so the in-game switcher is redundant. */
+/* Phone header: the logo returns to the game list and the game's own name sits beside it,
+   so a phone always says which table it is on. */
 @media (max-width: 700px) {
   :root { --app-pad: 14px; }
   .app { padding-top: 12px; }
   .topbar { gap: 8px; min-height: 38px; }
   .brand { font-size: 21px; }
   .brand-group { gap: 9px; min-width: 0; }
-  .game-picker { display: none; }
+  .game-picker { min-width: 0; }
+  .game-menu-button { gap: 6px; min-width: 0; max-width: 46vw; font-size: 15px; }
   .menu-button { display: inline-flex; }
   .top-actions {
     position: absolute;
@@ -713,37 +721,86 @@ body[data-game="scopa"] .actions:has(.scopa-capture-choice) {
   45% { transform: scale(1.08) rotate(-1deg); }
 }
 
+/* Phones lay the whole table out on one five-track grid: each player's row carries their
+   own capture pile, hand, and score, and the deck sits beside the shared table, so no
+   pile is stranded in a corner with empty space between the three. */
 @media (max-width: 620px) {
   body[data-game="scopa"] {
     --card-w: clamp(44px, min(
       calc((var(--table-w) - var(--scopa-gap) * 4) / 5),
       calc((var(--play-h) - 100px) / 5.2 * .71)
     ), 74px);
+    --scopa-pile-w: calc(var(--card-w) * .72);
   }
-  body[data-game="scopa"] .tally { left: auto; right: -2px; padding: 4px 7px; }
-  body[data-game="scopa"] .tally-name { display: none; }
-  .scopa-board {
-    grid-template-areas:
-      "deck . . captures captures"
-      "table table table table table";
+  body[data-game="scopa"] .table {
+    display: grid;
     grid-template-columns: repeat(5, var(--card-w));
-    align-items: center;
+    grid-template-areas:
+      "oppcapture opponent opponent opponent opponent"
+      "deck       board    board    board    board"
+      "youcapture player   player   player   player";
+    align-content: space-evenly;
     justify-content: center;
-    width: calc(var(--card-w) * 5 + var(--scopa-gap) * 4);
-    min-height: 0;
-    padding-bottom: 18px;
+    row-gap: clamp(10px, calc(var(--card-h) * .2), 20px);
+    column-gap: var(--scopa-gap);
   }
-  .scopa-deck { align-self: start; }
-  .scopa-table { min-height: calc(var(--card-h) * 2 + var(--scopa-gap)); }
-  .scopa-capture-column {
+  /* The board and the capture column hand their children to the table grid above. */
+  .scopa-board,
+  .scopa-capture-column { display: contents; }
+  body[data-game="scopa"] .hand-row:first-child { grid-area: opponent; }
+  body[data-game="scopa"] .hand-row:last-child { grid-area: player; }
+  /* The score rides in the gutter the three-card hand leaves, so it scales with the cards
+     instead of landing on top of them. */
+  body[data-game="scopa"] .tally {
+    left: auto;
+    right: 0;
+    padding: 3px calc(var(--card-w) * .07);
+    border-radius: 10px;
+  }
+  body[data-game="scopa"] .tally-name { display: none; }
+  body[data-game="scopa"] .tally-total { font-size: clamp(13px, calc(var(--card-h) * .17), 20px); }
+  .scopa-deck { grid-area: deck; align-self: start; justify-self: center; }
+  .scopa-table {
+    grid-area: board;
     align-self: start;
-    flex-direction: row;
-    justify-content: flex-end;
-    gap: var(--scopa-gap);
-    min-height: var(--card-h);
+    min-height: calc(var(--card-h) * 2 + var(--scopa-gap));
   }
+  /* Captured cards are a side note next to the hand that won them, so their piles ride
+     at three-quarter size in the gutter the three-card hand leaves free. */
+  #opponentCapture { grid-area: oppcapture; }
+  #playerCapture { grid-area: youcapture; }
+  .scopa-capture-pile {
+    align-self: center;
+    justify-self: center;
+    width: var(--scopa-pile-w);
+    height: calc(var(--scopa-pile-w) / .71);
+  }
+  .scopa-capture-stack { width: 100%; height: 100%; }
+  .scopa-capture-stack .card { width: 100%; height: 100%; }
+  .scopa-capture-label {
+    bottom: auto;
+    top: calc(100% + 3px);
+    max-width: var(--card-w);
+    line-height: 1.15;
+    white-space: normal;
+  }
+  .scopa-capture-owner { display: none; }
+  .scopa-capture-count::after { content: " taken"; }
   body[data-game="scopa"] .actions:has(.scopa-capture-choice) { max-width: calc(100vw - 32px); }
   .scopa-score-row { grid-template-columns: minmax(62px, 1fr) repeat(2, minmax(40px, .65fr)); min-height: 23px; }
+}
+
+/* A phone held sideways has barely more height than three rows of cards, so the table
+   keeps only the row it is using and the cards may shrink past their portrait floor. */
+@media (max-width: 620px) and (max-height: 460px) and (orientation: landscape) {
+  body[data-game="scopa"] {
+    --card-w: clamp(32px, min(
+      calc((var(--table-w) - var(--scopa-gap) * 4) / 5),
+      calc((var(--play-h) - 46px) / 4.2 * .71)
+    ), 74px);
+  }
+  body[data-game="scopa"] .table { row-gap: 7px; padding-block: 4px; }
+  .scopa-table { min-height: var(--card-h); }
 }
 
 @media (min-width: 861px) {
@@ -1700,6 +1757,7 @@ body[data-game="golf"] .pile-label {
 /* The smallest phones: shrink the logo a touch so the whole top bar stays on one line. */
 @media (max-width: 380px) {
   .brand { font-size: 19px; }
+  .game-menu-button { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

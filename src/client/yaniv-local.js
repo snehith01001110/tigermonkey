@@ -12,9 +12,9 @@ import {
   isComputerLevel,
   shouldComputerCallYaniv,
 } from "./yaniv-ai.js";
-import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=stable-mobile-selection";
+import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=mobile-scopa-rail";
 import { setupLobby } from "./lobby.js";
-import { createYanivTable } from "./yaniv-ui.js?v=stable-mobile-selection";
+import { createYanivTable } from "./yaniv-ui.js?v=mobile-scopa-rail";
 
 const YOU = { id: "local-you", name: "you" };
 const COMPUTER = { id: "local-computer", name: "computer" };

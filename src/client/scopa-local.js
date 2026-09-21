@@ -1,9 +1,9 @@
 import { GameRuleError } from "../shared/games/errors.js";
 import { addPlayer, applyAction, createGame, viewForPlayer } from "../shared/games/scopa.js";
 import { COMPUTER_LEVELS, chooseComputerMove, isComputerLevel } from "./scopa-ai.js";
-import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=stable-mobile-selection";
+import { CARD_MOVE_MS, cardDealDuration } from "./card-motion.js?v=mobile-scopa-rail";
 import { setupLobby } from "./lobby.js";
-import { createScopaTable } from "./scopa-ui.js?v=stable-mobile-selection";
+import { createScopaTable } from "./scopa-ui.js?v=mobile-scopa-rail";
 
 const YOU = { id: "local-you", name: "you" };
 const COMPUTER = { id: "local-computer", name: "computer" };

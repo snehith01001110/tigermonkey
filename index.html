@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@600&family=Kelly+Slab&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=stable-mobile-selection" />
+  <link rel="stylesheet" href="styles.css?v=mobile-scopa-rail" />
   <script>try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 </head>
 <body>
@@ -30,7 +30,7 @@
         <a class="brand" href="/" aria-label="TigerMonkey home">tigermonkey</a>
         <div id="gamePicker" class="game-picker">
           <button id="gameMenuButton" class="game-menu-button" type="button" aria-haspopup="menu" aria-expanded="false">
-            <span id="currentGameLabel"></span>
+            <span id="currentGameLabel" class="game-menu-label"></span>
             <span class="game-menu-chevron" aria-hidden="true"></span>
           </button>
           <div id="gameMenu" class="game-menu" role="menu" aria-label="Choose game" hidden></div>
@@ -266,6 +266,6 @@
     </div>
   </dialog>
 
-  <script type="module" src="src/client/app.js?v=stable-mobile-selection"></script>
+  <script type="module" src="src/client/app.js?v=mobile-scopa-rail"></script>
 </body>
 </html>
