@@ -16,6 +16,7 @@
   color-scheme: light;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --app-pad: 28px;
+  --history-top-offset: clamp(40px, 8vh, 88px);
   /* The header and dock are measured at runtime (app.js) and written back here; these
      are the fallbacks used before that lands, and if the script never runs. */
   --chrome-h: 182px;
@@ -363,11 +364,12 @@ body[data-game]:not([data-game="home"]) {
 }
 .play::after { content: ""; }
 
-/* As tall as the table's cards; older turns fade out at the bottom. */
+/* Every game anchors history from the same shared shell position. The panel then uses
+   the remaining row height, while older turns fade out at the bottom. */
 .history {
-  align-self: center;
-  height: calc(var(--card-h) * 5.76 + 22px);
-  max-height: 100%;
+  align-self: stretch;
+  min-height: 0;
+  margin-top: var(--history-top-offset);
   overflow-y: auto;
   scrollbar-width: none;
   -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
