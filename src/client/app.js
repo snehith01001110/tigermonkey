@@ -24,20 +24,73 @@ for (const game of GAME_CATALOG) {
   gameMenu.appendChild(link);
 }
 
+const topActionsWrap = document.getElementById("topActionsWrap");
+const menuButton = document.getElementById("menuButton");
+
 function setGameMenuOpen(open) {
   gameMenu.hidden = !open;
   gameMenuButton.setAttribute("aria-expanded", String(open));
+  if (open) setActionsMenuOpen(false);
+}
+
+/* On narrow screens the top actions collapse behind one button, so the header never
+   runs past the edge. On wide screens the class is inert and the row stays visible. */
+function setActionsMenuOpen(open) {
+  topActionsWrap.classList.toggle("open", open);
+  menuButton.setAttribute("aria-expanded", String(open));
 }
 
 gameMenuButton.addEventListener("click", () => setGameMenuOpen(gameMenu.hidden));
+menuButton.addEventListener("click", () => setActionsMenuOpen(!topActionsWrap.classList.contains("open")));
+topActionsWrap.addEventListener("click", (event) => {
+  if (event.target !== menuButton && !menuButton.contains(event.target)) setActionsMenuOpen(false);
+});
 document.addEventListener("click", (event) => {
   if (!gamePicker.contains(event.target)) setGameMenuOpen(false);
+  if (!topActionsWrap.contains(event.target)) setActionsMenuOpen(false);
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape" || gameMenu.hidden) return;
+  if (event.key !== "Escape") return;
+  if (topActionsWrap.classList.contains("open")) {
+    setActionsMenuOpen(false);
+    menuButton.focus();
+  }
+  if (gameMenu.hidden) return;
   setGameMenuOpen(false);
   gameMenuButton.focus();
 });
+
+/* The table sizes its cards from the space the header and dock leave behind, so a game
+   fits the screen instead of scrolling. Both are text, so measuring them can't loop. */
+function trackPlayArea() {
+  const topbar = gameApp.querySelector(".topbar");
+  const dock = gameApp.querySelector(".dock");
+  const table = gameApp.querySelector(".table");
+  if (!topbar || !dock || !table) return;
+
+  let lastChrome = null;
+  let lastWidth = null;
+  const measure = () => {
+    const chrome = Math.ceil(topbar.getBoundingClientRect().bottom + dock.getBoundingClientRect().height);
+    const width = Math.floor(table.getBoundingClientRect().width);
+    if (chrome !== lastChrome && chrome > 0) {
+      lastChrome = chrome;
+      document.documentElement.style.setProperty("--chrome-h", `${chrome}px`);
+    }
+    if (width !== lastWidth && width > 0) {
+      lastWidth = width;
+      document.documentElement.style.setProperty("--table-w", `${width}px`);
+    }
+  };
+
+  const observer = new ResizeObserver(() => requestAnimationFrame(measure));
+  observer.observe(topbar);
+  observer.observe(dock);
+  observer.observe(table);
+  window.addEventListener("resize", measure);
+  window.addEventListener("orientationchange", measure);
+  measure();
+}
 
 const gameGrid = document.getElementById("gameGrid");
 for (const game of GAME_CATALOG) {
@@ -58,6 +111,7 @@ if (!roomCode && !selectedGameType) {
 } else {
   document.body.dataset.game = gameType;
   document.title = `TigerMonkey — ${game?.name || gameType}`;
+  trackPlayArea();
   document.getElementById("rulesTitle").textContent = game?.name || gameType;
 
   gameMenuButton.disabled = Boolean(roomCode && supportsMultiplayer);
