@@ -730,37 +730,55 @@ body[data-game="dice"] .table {
 .dice-roll-history li:first-child { border-top: 0; }
 .dice-roll-history strong { color: var(--ink); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .dice-roll-history .dice-history-empty { display: block; color: var(--muted); }
-/* Short screens (a phone held sideways): the tray keeps the height the table can spare. */
+/* Short screens (a phone held sideways): the tray takes every row the controls leave,
+   instead of a fixed height with the table's slack going to waste below it. */
 @media (max-height: 560px) {
-  body[data-game="dice"] .table { padding: 8px 0; }
-  .dice-roller { min-height: 0; row-gap: 14px; padding: 8px 0 12px; }
-  .dice-roll-button { height: clamp(110px, calc(var(--play-h) - 135px), 410px); }
+  body[data-game="dice"] .table { min-height: 100%; padding: 8px 0; }
+  .dice-roller {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+    grid-template-rows: auto minmax(90px, 1fr);
+    row-gap: 14px;
+    padding: 6px 0 10px;
+  }
+  .dice-roll-surface { align-self: stretch; grid-template-rows: minmax(0, 1fr); }
+  .dice-roll-button { height: 100%; }
   .dice-object { --die-size: clamp(76px, 16vh, 178px); }
-  .dice-history-panel { height: min(182px, calc(var(--play-h) - 125px)); }
+  .dice-history-panel { align-self: stretch; height: auto; }
 }
 
 @media (max-width: 620px) {
-  /* Fill the play area so the roller centers in it rather than hugging the header. */
-  body[data-game="dice"] .table { min-height: 100%; padding: 8px 0 16px; }
+  /* The tray reaches for the screen edges: the table gives back the app's side padding,
+     keeping only enough inset for the tray's own rounded border to show. */
+  body[data-game="dice"] .table {
+    width: calc(100% + (var(--app-pad) - 6px) * 2);
+    min-height: 100%;
+    margin-inline: calc(6px - var(--app-pad));
+    padding: 8px 0 14px;
+  }
   .dice-roller {
+    flex: 1;
     min-height: 0;
+    align-items: stretch;
     grid-template-areas:
       "controls"
       "roller"
       "history";
     grid-template-columns: minmax(0, 1fr);
-    gap: clamp(12px, 3vh, 30px);
-    padding: 8px 0 12px;
+    /* The tray takes every row the controls and the history don't. */
+    grid-template-rows: auto minmax(90px, 1fr) auto;
+    gap: clamp(10px, 2vh, 24px);
+    padding: 4px 0 8px;
   }
-  .dice-roll-surface { gap: 10px; }
-  /* Stacked on a phone, the tray and the history split the height the table has left. */
-  .dice-roll-button { height: clamp(90px, min(86vw, calc(var(--play-h) - 240px)), 360px); border-radius: 24px; }
-  .dice-object { --die-size: clamp(56px, min(34vw, calc(var(--play-h) * 0.18)), 148px); }
+  .dice-roll-surface { align-self: stretch; grid-template-rows: minmax(0, 1fr); gap: 10px; }
+  .dice-roll-button { height: 100%; border-radius: 22px; }
+  .dice-object { --die-size: clamp(56px, min(30vw, calc(var(--play-h) * 0.17)), 148px); }
   .dice-history-panel {
     justify-self: center;
     align-self: auto;
-    width: min(100%, 250px);
-    height: clamp(64px, calc(var(--play-h) * 0.2), 156px);
+    width: 100%;
+    height: clamp(64px, calc(var(--play-h) * 0.18), 148px);
   }
   .dice-roll-history { max-height: none; }
 }
