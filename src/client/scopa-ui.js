@@ -136,7 +136,7 @@ export function createScopaTable({
     renderDock();
     renderHistory();
     renderScores();
-    animateCards(before, { root: els.table, deck: els.deck, dealDelay: 70 });
+    animateCards(before, { root: els.table, deck: els.deck });
   }
 
   function renderEmpty(message = "Loading Scopa…") {

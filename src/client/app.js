@@ -125,7 +125,7 @@ if (!roomCode && !selectedGameType) {
       const { startYanivOnlineGame } = await import("./yaniv-online.js");
       startYanivOnlineGame(roomCode);
     } else if (gameType === "scopa") {
-      const { startScopaOnlineGame } = await import("./scopa-online.js");
+      const { startScopaOnlineGame } = await import("./scopa-online.js?v=motion-sync");
       startScopaOnlineGame(roomCode);
     } else {
       const { startOnlineGame } = await import("./online.js");
@@ -135,7 +135,7 @@ if (!roomCode && !selectedGameType) {
     const { startLocalYaniv } = await import("./yaniv-local.js");
     startLocalYaniv();
   } else if (gameType === "scopa") {
-    const { startLocalScopa } = await import("./scopa-local.js");
+    const { startLocalScopa } = await import("./scopa-local.js?v=motion-sync");
     startLocalScopa();
   } else if (gameType === "golf") {
     const { startGolf } = await import("./golf-ui.js");

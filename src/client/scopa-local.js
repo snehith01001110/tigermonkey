@@ -2,7 +2,7 @@ import { GameRuleError } from "../shared/games/errors.js";
 import { addPlayer, applyAction, createGame, viewForPlayer } from "../shared/games/scopa.js";
 import { COMPUTER_LEVELS, chooseComputerMove, isComputerLevel } from "./scopa-ai.js";
 import { setupLobby } from "./lobby.js";
-import { createScopaTable } from "./scopa-ui.js";
+import { createScopaTable } from "./scopa-ui.js?v=motion-sync";
 
 const YOU = { id: "local-you", name: "you" };
 const COMPUTER = { id: "local-computer", name: "computer" };
