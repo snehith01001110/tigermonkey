@@ -1486,13 +1486,16 @@ body[data-game="golf"] .pile-label {
 .primary-button:disabled,
 .secondary-button:disabled { cursor: default; opacity: .45; }
 
-/* Phones: the dock stacks and keeps to its content, so the table keeps the rest of the screen. */
+/* Phones reserve one stable dock slot. Selecting a card can change the available actions,
+   but it must not resize the play area and pull the whole table upward. */
 @media (max-width: 700px) {
   .dock {
+    flex: 0 0 clamp(108px, 15vh, 122px);
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    min-height: 0;
+    min-height: clamp(108px, 15vh, 122px);
     padding-block: 10px;
     text-align: center;
   }
@@ -1510,6 +1513,10 @@ body[data-game="golf"] .pile-label {
   .dock { min-height: 0; padding-block: 7px; }
   .message { font-size: 12px; }
   .table { padding-block: 8px; }
+}
+
+@media (max-width: 700px) and (max-height: 460px) and (orientation: landscape) {
+  .dock { flex-basis: 96px; min-height: 96px; }
 }
 
 .modal {

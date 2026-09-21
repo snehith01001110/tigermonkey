@@ -1,6 +1,6 @@
 import { prettyCard, powerFor, scoreCard } from "../shared/games/cabo.js";
-import { CARD_MOVE_MS, animateCards, snapshotCards } from "./card-motion.js?v=slower-motion";
-import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./score-motion.js?v=slower-motion";
+import { CARD_MOVE_MS, animateCards, snapshotCards } from "./card-motion.js?v=stable-mobile-selection";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./score-motion.js?v=stable-mobile-selection";
 import { gameUrl, loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
 import { closeLobby, setupLobby, showWaitingRoom } from "./lobby.js";
 

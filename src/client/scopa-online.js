@@ -1,6 +1,6 @@
 import { gameUrl, loadCredential, multiplayerApiBase, roomUrl } from "./config.js";
 import { closeLobby, setupLobby, showWaitingRoom } from "./lobby.js";
-import { createScopaTable } from "./scopa-ui.js?v=slower-motion";
+import { createScopaTable } from "./scopa-ui.js?v=stable-mobile-selection";
 
 let roomCode = "";
 let credential = null;

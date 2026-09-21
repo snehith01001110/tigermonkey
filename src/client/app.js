@@ -122,29 +122,29 @@ if (!roomCode && !selectedGameType) {
 
   if (roomCode && supportsMultiplayer) {
     if (gameType === "yaniv") {
-      const { startYanivOnlineGame } = await import("./yaniv-online.js?v=slower-motion");
+      const { startYanivOnlineGame } = await import("./yaniv-online.js?v=stable-mobile-selection");
       startYanivOnlineGame(roomCode);
     } else if (gameType === "scopa") {
-      const { startScopaOnlineGame } = await import("./scopa-online.js?v=slower-motion");
+      const { startScopaOnlineGame } = await import("./scopa-online.js?v=stable-mobile-selection");
       startScopaOnlineGame(roomCode);
     } else {
-      const { startOnlineGame } = await import("./online.js?v=slower-motion");
+      const { startOnlineGame } = await import("./online.js?v=stable-mobile-selection");
       startOnlineGame(roomCode);
     }
   } else if (gameType === "yaniv") {
-    const { startLocalYaniv } = await import("./yaniv-local.js?v=slower-motion");
+    const { startLocalYaniv } = await import("./yaniv-local.js?v=stable-mobile-selection");
     startLocalYaniv();
   } else if (gameType === "scopa") {
-    const { startLocalScopa } = await import("./scopa-local.js?v=slower-motion");
+    const { startLocalScopa } = await import("./scopa-local.js?v=stable-mobile-selection");
     startLocalScopa();
   } else if (gameType === "golf") {
-    const { startGolf } = await import("./golf-ui.js?v=slower-motion");
+    const { startGolf } = await import("./golf-ui.js?v=stable-mobile-selection");
     startGolf();
   } else if (gameType === "dice") {
     const { startDice } = await import("./dice-ui.js");
     startDice();
   } else {
-    await import("../../game.js?v=slower-motion");
+    await import("../../game.js?v=stable-mobile-selection");
     const { setupLobby } = await import("./lobby.js");
     setupLobby({ gameType });
   }

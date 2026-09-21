@@ -1,4 +1,4 @@
-import { CARD_MOVE_MS } from "./card-motion.js?v=slower-motion";
+import { CARD_MOVE_MS } from "./card-motion.js?v=stable-mobile-selection";
 
 export const SCORE_COUNT_MS = 520;
 

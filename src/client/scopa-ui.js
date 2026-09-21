@@ -1,5 +1,5 @@
 import { captureOptions, cardValue, prettyCard } from "../shared/games/scopa.js";
-import { animateCards, snapshotCards } from "./card-motion.js?v=slower-motion";
+import { animateCards, snapshotCards } from "./card-motion.js?v=stable-mobile-selection";
 
 const baseEls = {
   table: document.querySelector(".table"),

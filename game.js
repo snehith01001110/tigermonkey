@@ -1,5 +1,5 @@
-import { CARD_MOVE_MS, animateCards, cardDealDuration, snapshotCards } from "./src/client/card-motion.js?v=slower-motion";
-import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./src/client/score-motion.js?v=slower-motion";
+import { CARD_MOVE_MS, animateCards, cardDealDuration, snapshotCards } from "./src/client/card-motion.js?v=stable-mobile-selection";
+import { revealScoreCard, runScoreCount, scoreValueBadge, setTallyValue } from "./src/client/score-motion.js?v=stable-mobile-selection";
 
 (() => {
   const SUITS = ["♠", "♥", "♦", "♣"];

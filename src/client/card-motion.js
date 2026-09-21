@@ -11,6 +11,7 @@ export function snapshotCards(root = document) {
       rect: card.getBoundingClientRect(),
       width: card.offsetWidth,
       faceUp: card.classList.contains("face-up"),
+      layoutKey: cardLayoutKey(card),
     });
   }
   return snapshot;
@@ -21,6 +22,17 @@ export function snapshotCards(root = document) {
 export function animateCards(before, { root = document, deck = root.querySelector("#deck"), dealDelay = CARD_DEAL_DELAY_MS } = {}) {
   if (prefersReducedMotion() || !deck) return;
 
+  const cards = [...root.querySelectorAll(CARD_SELECTOR)];
+  const structureChanged = cards.length !== before.size || cards.some((card) => {
+    const previous = before.get(card.dataset.cardId);
+    return !previous
+      || previous.faceUp !== card.classList.contains("face-up")
+      || previous.layoutKey !== cardLayoutKey(card);
+  });
+  // Selection-only renders may rebuild the controls and cards, but no card changed
+  // place or face. Let selection feedback happen without treating layout reflow as a move.
+  if (!structureChanged) return;
+
   const deckCard = deck.querySelector(".deck-layer:last-child") || deck;
   const deckRect = deckCard.getBoundingClientRect();
   if (!deckRect.width || !deckRect.height) return;
@@ -28,7 +40,7 @@ export function animateCards(before, { root = document, deck = root.querySelecto
   const fromDeck = { rect: deckRect, width: deckRect.width, faceUp: false };
   const dealt = [];
 
-  for (const card of root.querySelectorAll(CARD_SELECTOR)) {
+  for (const card of cards) {
     const previous = before.get(card.dataset.cardId);
     if (previous) animateCard(card, previous, 0);
     else if (!card.dataset.under) dealt.push(card);
@@ -37,6 +49,11 @@ export function animateCards(before, { root = document, deck = root.querySelecto
   dealt
     .sort((a, b) => Number(a.dataset.deal || 0) - Number(b.dataset.deal || 0))
     .forEach((card, index) => animateCard(card, fromDeck, index * dealDelay));
+}
+
+function cardLayoutKey(card) {
+  const zone = card.closest("[id]")?.id || "";
+  return `${zone}:${card.dataset.owner || ""}:${card.dataset.index || ""}`;
 }
 
 export function cardDealDuration(cardCount, dealDelay = CARD_DEAL_DELAY_MS) {
