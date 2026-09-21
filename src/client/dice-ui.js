@@ -108,8 +108,8 @@ export function startDice() {
         <span id="diceRollAnnouncement" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
       </div>
       <aside class="dice-history-panel" aria-labelledby="diceHistoryTitle">
-        <h2 id="diceHistoryTitle">recent rolls</h2>
-        <ol id="diceRollHistory" class="dice-roll-history" tabindex="0" aria-label="Recent rolls, newest first"></ol>
+        <h2 id="diceHistoryTitle">history</h2>
+        <ol id="diceRollHistory" class="dice-roll-history" tabindex="0" aria-label="Roll history, newest first"></ol>
       </aside>
     </section>`;
 
