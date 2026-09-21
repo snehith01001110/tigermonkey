@@ -543,7 +543,8 @@ body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h)
 /* Scopa: three-card hands frame a shared capture table. Seven card-width tracks fit the
    stock, five table cards, and the captured piles; ten is the table's rules-based maximum. */
 body[data-game="scopa"] {
-  --scopa-gap: clamp(5px, calc(var(--card-h) * .1), 11px);
+  /* Keep this independent from the card dimensions: --card-w uses this gap below. */
+  --scopa-gap: clamp(5px, .65vw, 11px);
   --card-w: clamp(42px, min(
     calc((var(--table-w) - var(--scopa-gap) * 6) / 7),
     calc((var(--play-h) - 92px) / 4.65 * .71)
