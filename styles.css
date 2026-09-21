@@ -726,6 +726,28 @@ body[data-game="dice"] .table {
 }
 .dice-roll-history li:first-child { border-top: 0; }
 .dice-roll-history strong { color: var(--ink); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dice-roll-history li.dice-history-latest {
+  align-items: center;
+  margin-bottom: 4px;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--ink) 24%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper));
+  color: var(--ink);
+  animation: dice-history-latest-in 260ms var(--ease);
+}
+.dice-history-latest strong { font-size: 22px; }
+.dice-history-latest-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+@keyframes dice-history-latest-in {
+  from { opacity: .4; transform: scale(.96); }
+}
 .dice-roll-history .dice-history-empty { display: block; color: var(--muted); }
 /* Short screens (a phone held sideways): the tray takes every row the controls leave,
    instead of a fixed height with the table's slack going to waste below it. */
@@ -1406,6 +1428,7 @@ body[data-game="golf"] .pile-label {
   .card, .deck-layer { transition: none; }
   .toggle-track, .toggle-thumb { transition: none; }
   .shortcut-hint-flash { animation: shortcut-flash-reduced 240ms linear forwards; }
+  .dice-history-latest { animation: none; }
   .card-value { animation: none; }
   .tally, .result-line { animation: none; }
   .hand.tallying .card { opacity: 1; }

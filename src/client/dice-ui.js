@@ -474,9 +474,14 @@ function render() {
     return;
   }
 
-  for (const entry of rolls) {
+  for (const [index, entry] of rolls.entries()) {
     const item = document.createElement("li");
-    item.innerHTML = `<span>roll ${entry.number} · d${entry.sides}</span><strong>${entry.value}</strong>`;
+    const latest = index === 0;
+    if (latest) {
+      item.className = "dice-history-latest";
+      item.setAttribute("aria-current", "true");
+    }
+    item.innerHTML = `<span>${latest ? '<span class="dice-history-latest-label">latest roll</span>' : ""}roll ${entry.number} · d${entry.sides}</span><strong>${entry.value}</strong>`;
     rollHistory.appendChild(item);
   }
 }
