@@ -9,6 +9,7 @@ import {
   confineDice,
   createDiceMotion,
   DICE_STEP,
+  rethrowDiceMotion,
   resizeDiceMotion,
   stepDiceMotion,
 } from "./dice-motion.js";
@@ -216,7 +217,15 @@ function adjustSidesWithArrowKey(event) {
 }
 
 function roll(direction) {
-  if (rolling || document.querySelector("dialog[open]")) return false;
+  if (document.querySelector("dialog[open]")) return false;
+  if (rolling) {
+    rethrowDiceMotion(motion, {
+      direction,
+      random: () => secureRandomInt(0x1_0000_0000) / 0x1_0000_0000,
+    });
+    rollButton.classList.remove("landed");
+    return true;
+  }
   normalizeSidesInput();
   pendingRoll = { sides };
   motion = createDiceMotion({
@@ -236,7 +245,6 @@ function roll(direction) {
   rollButton.classList.remove("landed");
   rollButton.classList.add("rolling");
   rollButton.setAttribute("aria-busy", "true");
-  rollButton.setAttribute("aria-disabled", "true");
   previousFrame = 0;
   accumulator = 0;
   if (reducedMotion.matches) skipRollAnimation();
@@ -341,7 +349,6 @@ function finishRoll() {
   rollButton.classList.remove("rolling");
   rollButton.classList.add("landed");
   rollButton.removeAttribute("aria-busy");
-  rollButton.removeAttribute("aria-disabled");
   rollAnnouncement.textContent = `Roll ${entry.number}: ${entry.value}, on a ${entry.sides}-sided die.`;
   if (!reducedMotion.matches && typeof navigator.vibrate === "function")
     navigator.vibrate(12);
@@ -380,7 +387,7 @@ function rollWithWheel(event) {
 }
 
 function startSwipe(event) {
-  if (event.pointerType !== "touch" || !event.isPrimary || rolling) return;
+  if (event.pointerType !== "touch" || !event.isPrimary) return;
   swipeStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
   rollButton.setPointerCapture(event.pointerId);
 }

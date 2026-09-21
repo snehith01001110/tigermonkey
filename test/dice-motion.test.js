@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createDiceMotion, diceBounds, DICE_STEP, resizeDiceMotion, stepDiceMotion } from "../src/client/dice-motion.js";
+import { createDiceMotion, diceBounds, DICE_STEP, resizeDiceMotion, rethrowDiceMotion, stepDiceMotion } from "../src/client/dice-motion.js";
 import { dieCollisionOutline } from "../src/client/dice-visual.js";
 
 function seededRandom(seed) {
@@ -69,4 +69,23 @@ test("input direction steers a roll and fixed steps produce repeatable motion", 
   for(let frame=0;frame<120;frame++) { stepDiceMotion(a,DICE_STEP); stepDiceMotion(a,DICE_STEP); }
   for(let frame=0;frame<240;frame++) stepDiceMotion(b,DICE_STEP);
   assert.deepEqual(a,b);
+});
+
+test("repeated input rethrows a moving die without unbounded speed", () => {
+  const s = motion({direction:{x:1,y:0}});
+  for(let i=0;i<180;i++) stepDiceMotion(s);
+  const elapsed = s.elapsed;
+  rethrowDiceMotion(s, {direction:{x:-1,y:0}, random:seededRandom(7)});
+  assert.equal(s.settled, false);
+  assert.equal(s.elapsed, 0);
+  assert.ok(elapsed > 0);
+  assert.ok(s.vx < 0, "a swipe redirects the moving die");
+  assert.ok(s.vz >= 280, "input adds a fresh bounce");
+
+  for(let i=0;i<30;i++)
+    rethrowDiceMotion(s, {direction:{x:1,y:0}, random:seededRandom(i + 10)});
+  assert.ok(
+    Math.hypot(s.vx,s.vy) <= Math.hypot(s.width,s.height) * 3.8 + 1e-7,
+    "rapid input remains controllable",
+  );
 });

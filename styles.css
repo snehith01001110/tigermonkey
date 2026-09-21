@@ -385,20 +385,14 @@ body[data-game]:not([data-game="home"]) {
   .history-toggle { display: inline-block; }
 }
 
-/* Phone header: the brand and the current game stay put, everything else folds into
-   one menu so the row always fits the screen. */
+/* Phone header: the logo returns to the game list, so the in-game switcher is redundant. */
 @media (max-width: 700px) {
   :root { --app-pad: 14px; }
   .app { padding-top: 12px; }
   .topbar { gap: 8px; min-height: 38px; }
   .brand { font-size: 21px; }
   .brand-group { gap: 9px; min-width: 0; }
-  .game-menu-button { min-width: 0; font-size: 15px; }
-  .game-menu-button > span:first-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  .game-picker { display: none; }
   .menu-button { display: inline-flex; }
   .top-actions {
     position: absolute;
@@ -461,7 +455,9 @@ body[data-game]:not([data-game="home"]) {
   align-content: center;
   justify-content: center;
   gap: var(--gap);
-  width: calc(var(--card-w) * 2 + var(--gap));
+  /* Leave a fractional-pixel cushion so browser zoom and high-DPI rounding cannot
+     turn a two-column hand into a single column. */
+  width: calc(var(--card-w) * 2 + var(--gap) + 1px);
   min-height: calc(var(--card-h) * 2 + var(--gap));
 }
 
@@ -474,7 +470,7 @@ body[data-game]:not([data-game="home"]) {
 /* Yaniv hands are public to their owner and start as a five-card row. */
 body[data-game="yaniv"] .table { gap: calc(var(--card-h) * .42); }
 body[data-game="yaniv"] .hand {
-  width: min(100%, calc(var(--card-w) * 5 + var(--gap) * 4));
+  width: min(100%, calc(var(--card-w) * 5 + var(--gap) * 4 + 1px));
   min-height: var(--card-h);
 }
 body[data-game="yaniv"] .ai-hand { flex-direction: row; flex-wrap: wrap; }
@@ -496,26 +492,27 @@ body[data-game="yaniv"] .tally-total { font-size: clamp(17px, calc(var(--card-h)
 }
 
 /* Dice: a focused roller with its recent results kept close at hand. */
+body[data-game="dice"] .app { width: min(1440px, 100%); }
 body[data-game="dice"] .play { display: block; position: relative; }
 body[data-game="dice"] .play::after { display: none; }
 body[data-game="dice"] .table {
-  width: min(100%, 800px);
-  min-height: min(590px, var(--play-h));
+  width: min(100%, 1180px);
+  min-height: min(820px, var(--play-h));
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 16px 0;
 }
 .dice-roller {
   display: grid;
   width: 100%;
-  min-height: min(450px, calc(var(--play-h) - 56px));
+  min-height: min(720px, calc(var(--play-h) - 32px));
   grid-template-areas:
     "controls controls"
     "roller history";
-  grid-template-columns: minmax(0, 1fr) 148px;
+  grid-template-columns: minmax(0, 1fr) 170px;
   align-items: center;
   column-gap: 24px;
-  row-gap: 34px;
-  padding: 24px 12px 30px;
+  row-gap: 24px;
+  padding: 16px 12px 24px;
 }
 .dice-controls {
   grid-area: controls;
@@ -593,7 +590,7 @@ body[data-game="dice"] .table {
   isolation: isolate;
   width: 100%;
   /* The tray takes the width it can get, but never more height than the table has. */
-  height: clamp(140px, min(40vw, calc(var(--play-h) - 190px)), 410px);
+  height: clamp(280px, min(56vw, calc(var(--play-h) - 150px)), 680px);
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -662,7 +659,7 @@ body[data-game="dice"] .table {
 .dice-roll-button:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 .dice-roll-button.rolling { cursor: progress; }
 .dice-object {
-  --die-size: clamp(132px, 24vw, 178px);
+  --die-size: clamp(148px, 18vw, 220px);
   position: absolute;
   top: 0;
   left: 0;
@@ -689,8 +686,8 @@ body[data-game="dice"] .table {
 .dice-history-panel {
   grid-area: history;
   align-self: end;
-  width: 148px;
-  height: min(182px, calc(var(--play-h) - 170px));
+  width: 170px;
+  height: min(220px, calc(var(--play-h) - 170px));
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -812,9 +809,8 @@ body[data-game="golf"] .table {
   letter-spacing: .04em;
 }
 .golf-tableau {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(7, var(--card-w));
   align-items: flex-end;
   gap: clamp(6px, calc(var(--card-h) * .12), 14px) var(--golf-gap);
   max-width: 100%;
@@ -854,8 +850,10 @@ body[data-game="golf"] .table {
       calc((var(--play-h) - 112px) / 6.12 * 0.71)
     ), 86px);
   }
-  /* Four columns wide, so the seven wrap 4 + 3 instead of wherever they happen to fit. */
-  .golf-tableau { max-width: calc(var(--card-w) * 4 + var(--golf-gap) * 3); }
+  .golf-tableau {
+    grid-template-columns: repeat(4, var(--card-w));
+    max-width: calc(var(--card-w) * 4 + var(--golf-gap) * 3);
+  }
 }
 
 .golf-center { padding-bottom: 18px; }
@@ -1402,7 +1400,6 @@ body[data-game="golf"] .pile-label {
 /* The smallest phones: shrink the logo a touch so the whole top bar stays on one line. */
 @media (max-width: 380px) {
   .brand { font-size: 19px; }
-  .game-menu-button { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

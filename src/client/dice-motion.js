@@ -65,6 +65,40 @@ export function createDiceMotion({
   return state;
 }
 
+export function rethrowDiceMotion(state, { direction, random = Math.random } = {}) {
+  const bearing = random() * Math.PI * 2;
+  const dx = direction?.x ?? Math.cos(bearing);
+  const dy = direction?.y ?? Math.sin(bearing);
+  const length = Math.hypot(dx, dy) || 1;
+  const angle = Math.atan2(dy / length, dx / length) + (random() - 0.5) * 0.24;
+  const speed = Math.hypot(state.width, state.height) * (2.25 + random() * 0.3);
+  const vx = state.vx * 0.28 + Math.cos(angle) * speed;
+  const vy = state.vy * 0.28 + Math.sin(angle) * speed;
+  const maxSpeed = Math.hypot(state.width, state.height) * 3.8;
+  const combinedSpeed = Math.hypot(vx, vy);
+  const scale = combinedSpeed > maxSpeed ? maxSpeed / combinedSpeed : 1;
+
+  state.vx = vx * scale;
+  state.vy = vy * scale;
+  state.vz = Math.max(state.vz, 280 + random() * 70);
+  state.lift = Math.max(state.lift, 6);
+  state.spin = clamp(
+    state.spin * 0.35 + (random() < 0.5 ? -1 : 1) * (8 + random() * 5),
+    -17,
+    17,
+  );
+  if (state.body) {
+    state.angularX = (state.vy / state.size) * 2.1;
+    state.angularY = (state.vx / state.size) * 2.1;
+  }
+  state.springX *= 0.35;
+  state.springY -= 0.7;
+  state.elapsed = 0;
+  state.quiet = 0;
+  state.settled = false;
+  return state;
+}
+
 export function diceBounds(state) {
   const cos = Math.cos(state.angle),
     sin = Math.sin(state.angle);

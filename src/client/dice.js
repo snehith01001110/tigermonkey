@@ -1,4 +1,4 @@
-export const DEFAULT_DIE_SIDES = 6;
+export const DEFAULT_DIE_SIDES = 101;
 export const MIN_DIE_SIDES = 4;
 export const MAX_DIE_SIDES = 200;
 
