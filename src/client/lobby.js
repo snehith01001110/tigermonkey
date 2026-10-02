@@ -22,6 +22,10 @@ const els = {
   copy: document.getElementById("copyInviteBtn"),
 };
 
+// The header entry point is hidden for now. Invite links still open the lobby and
+// online rooms keep their "leave game" button; flip this to bring the button back.
+const SHOW_MULTIPLAYER_BUTTON = false;
+
 let initialized = false;
 let buttonAttached = false;
 let inviteCode = "";
@@ -48,6 +52,7 @@ export function setupLobby({ roomCode = "", gameType = gameTypeFromUrl(), autoOp
   }
   if (attachButton && !buttonAttached) {
     buttonAttached = true;
+    els.button.hidden = !SHOW_MULTIPLAYER_BUTTON;
     els.button.addEventListener("click", () => openLobby());
   }
 
